@@ -10,7 +10,7 @@ import { MetricCard } from "@/components/metric-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { uk } from "@/i18n/uk";
-import { formatCurrency } from "@/i18n/format";
+import { formatCurrency, formatDateTimeUtc } from "@/i18n/format";
 import {
   budgetImpact,
   downloadExecutivePdf,
@@ -48,6 +48,8 @@ function ReportsPageInner() {
     queryFn: () => executiveSummary({ datasetId: datasetId! }),
     enabled: !!datasetId,
   });
+  const reportGeneratedAt =
+    latestDateTime(summaryQuery.data?.metadata.generated_at, impactQuery.data?.generated_at) ?? null;
 
   return (
     <BackOfficeShell>
@@ -55,6 +57,11 @@ function ReportsPageInner() {
         <div className="flex flex-col gap-1">
           <h1 className="text-display text-ink">{uk.reports.title}</h1>
           <p className="text-small">{uk.reports.subtitle}</p>
+          {reportGeneratedAt && (
+            <p className="text-meta text-ink-muted">
+              {uk.reports.generatedAt}: {formatDateTimeUtc(reportGeneratedAt)}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -153,7 +160,7 @@ function ReportsPageInner() {
                       key={type}
                       className="flex items-center justify-between rounded-lg border border-ink/5 bg-sand-300/40 px-4 py-3"
                     >
-                      <span className="text-ink">{uk.findingType[type as FindingType]}</span>
+                      <span className="text-ink">{uk.findingType[type as FindingType] ?? type}</span>
                       <span className="tabular font-medium text-forest-700">
                         {formatCurrency(value)}
                       </span>
@@ -208,4 +215,13 @@ function ReportsPageInner() {
       </div>
     </BackOfficeShell>
   );
+}
+
+function latestDateTime(...values: Array<string | null | undefined>): string | undefined {
+  const dates = values
+    .filter((value): value is string => Boolean(value))
+    .map((value) => ({ raw: value, date: new Date(value) }))
+    .filter((item) => !Number.isNaN(item.date.getTime()))
+    .sort((a, b) => b.date.getTime() - a.date.getTime());
+  return dates[0]?.raw;
 }

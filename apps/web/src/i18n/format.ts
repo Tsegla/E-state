@@ -16,6 +16,11 @@ const dateTimeFormatter = new Intl.DateTimeFormat("uk-UA", {
   dateStyle: "medium",
   timeStyle: "short",
 });
+const dateTimeUtcFormatter = new Intl.DateTimeFormat("uk-UA", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "UTC",
+});
 
 export function formatInt(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "—";
@@ -49,4 +54,11 @@ export function formatDateTime(value: string | Date | null | undefined): string 
   const date = typeof value === "string" ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return "—";
   return dateTimeFormatter.format(date);
+}
+
+export function formatDateTimeUtc(value: string | Date | null | undefined): string {
+  if (!value) return "—";
+  const date = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return "—";
+  return `${dateTimeUtcFormatter.format(date)} UTC`;
 }

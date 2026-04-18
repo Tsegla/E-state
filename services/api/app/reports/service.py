@@ -34,6 +34,7 @@ from app.security.pii import mask_name, mask_tax_id
 
 EXPORT_ROW_LIMIT = 50_000
 PDF_FONT_NAME = "EStateUnicode"
+REPORT_TIME_FORMAT = "%d.%m.%Y %H:%M UTC"
 PDF_FONT_CANDIDATES = (
     "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
     "/System/Library/Fonts/Supplemental/Arial.ttf",
@@ -56,6 +57,7 @@ EXPORT_COLUMNS = [
     "Орієнтовний вплив на бюджет, грн/рік",
     "Нотатка для інспектора",
 ]
+UPLIFT_COLUMN_UK = "Орієнтовний вплив на бюджет, грн/рік"
 
 FINDING_TYPE_LABELS_UK = {
     FindingType.LAND_NO_REAL_ESTATE.value: "Земля без відповідної нерухомості",
@@ -87,6 +89,19 @@ SOURCE_LABELS_UK = {
     "drrp": "ДРРП",
     "field_override": "Польовий огляд",
 }
+
+
+def _normalize_to_utc(value: datetime) -> datetime:
+    # SQLite may return naive datetimes even for timezone-aware columns; treat them as UTC.
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _format_report_timestamp(value: datetime | None) -> str:
+    if value is None:
+        return ""
+    return _normalize_to_utc(value).strftime(REPORT_TIME_FORMAT)
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,7 +213,11 @@ def _fetch_filtered_findings(session: Session, filters: ReportFilters) -> list[F
     )
     return sorted(
         rows,
-        key=lambda row: (severity_rank.get(row.severity, 99), row.detected_at, str(row.id)),
+        key=lambda row: (
+            severity_rank.get(row.severity, 99),
+            _normalize_to_utc(row.detected_at),
+            str(row.id),
+        ),
         reverse=False,
     )
 
@@ -283,12 +302,8 @@ def _report_rows(
                 "РНОКПП": person_tax_id,
                 "Власник": person_display,
                 "КОАТУУ": koatuu_map.get(finding.person_tax_id, ""),
-                "Виявлено": finding.detected_at.strftime("%d.%m.%Y %H:%M"),
-                "Призначено інспектору": (
-                    finding.assigned_at.strftime("%d.%m.%Y %H:%M")
-                    if finding.assigned_at
-                    else ""
-                ),
+                "Виявлено": _format_report_timestamp(finding.detected_at),
+                "Призначено інспектору": _format_report_timestamp(finding.assigned_at),
                 "Коротко про розбіжність": _metrics_summary_uk(finding),
                 "К-сть виїздів": int(visit_counts.get(finding.id, 0)),
                 "Підтверджене джерело": (
@@ -301,7 +316,7 @@ def _report_rows(
                     if verified and verified.area_m2 is not None
                     else ""
                 ),
-                "Орієнтовний вплив на бюджет, грн/рік": uplift,
+                UPLIFT_COLUMN_UK: uplift,
                 "Нотатка для інспектора": (
                     finding.assignment_note or ""
                     if context.pii_scope == "full"
@@ -399,7 +414,7 @@ def _summary_metrics(
         "dismissed_count": int(status_counter.get("dismissed", 0)),
         "unique_finding_types": len(type_counter),
         "estimated_uplift_uah_per_year": round(
-            sum(float(r.get("estimated_uplift_uah_per_year") or 0.0) for r in rows), 2
+            sum(float(r.get(UPLIFT_COLUMN_UK) or 0.0) for r in rows), 2
         ),
     }
 
@@ -611,7 +626,7 @@ def executive_pdf_bytes(summary: ExecutiveSummaryDTO) -> bytes:
     lines = [
         "E-State: Підсумковий звіт для керівництва громади",
         f"Набір даних: {summary.metadata.dataset_label}",
-        f"Дата формування: {summary.metadata.generated_at.strftime('%d.%m.%Y %H:%M')}",
+        f"Дата формування: {_format_report_timestamp(summary.metadata.generated_at)}",
         "",
         "1) Орієнтовний вплив на бюджет",
         f"  Очікувані додаткові надходження: {summary.budget_impact.total_uah_per_year:,.2f} грн/рік",

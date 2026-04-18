@@ -15,6 +15,7 @@ from app.api.envelope import ApiResponse, ok
 from app.api.errors import ForbiddenError, NotFoundError, ValidationError
 from app.api.schemas import BudgetImpactDTO, ExecutiveSummaryDTO
 from app.reports.service import (
+    _normalize_to_utc,
     ReportFilters,
     build_budget_impact,
     build_executive_summary,
@@ -40,6 +41,10 @@ def _parse_pii_scope(pii_scope: str, principal: Principal) -> str:
     if pii_scope == "full" and not principal.is_admin:
         raise ForbiddenError("pii_scope=full is only allowed for admin role")
     return pii_scope
+
+
+def _utc_export_day(value: datetime) -> str:
+    return _normalize_to_utc(value).strftime("%Y%m%d")
 
 
 @router.get("/budget-impact", response_model=ApiResponse[BudgetImpactDTO])
@@ -130,7 +135,9 @@ async def findings_export_csv(
         raise NotFoundError(f"Dataset {dataset_id} not found") from exc
 
     payload = findings_csv_bytes(rows)
-    filename = f"findings_{_safe_label(context.dataset_label)}_{datetime.now().strftime('%Y%m%d')}.csv"
+    filename = (
+        f"findings_{_safe_label(context.dataset_label)}_{_utc_export_day(context.generated_at)}.csv"
+    )
     log_action(
         session,
         actor=principal.subject,
@@ -177,7 +184,9 @@ async def findings_export_xlsx(
         raise NotFoundError(f"Dataset {dataset_id} not found") from exc
 
     payload = findings_xlsx_bytes(rows, summary)
-    filename = f"findings_{_safe_label(context.dataset_label)}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    filename = (
+        f"findings_{_safe_label(context.dataset_label)}_{_utc_export_day(context.generated_at)}.xlsx"
+    )
     log_action(
         session,
         actor=principal.subject,
@@ -224,7 +233,9 @@ async def executive_pdf(
         raise NotFoundError(f"Dataset {dataset_id} not found") from exc
 
     payload = executive_pdf_bytes(summary)
-    filename = f"executive_{_safe_label(summary.metadata.dataset_label)}_{datetime.now().strftime('%Y%m%d')}.pdf"
+    filename = (
+        f"executive_{_safe_label(summary.metadata.dataset_label)}_{_utc_export_day(summary.metadata.generated_at)}.pdf"
+    )
     log_action(
         session,
         actor=principal.subject,
