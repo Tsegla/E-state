@@ -37,6 +37,7 @@ class MatcherRunResponse(BaseModel):
 
 
 class FindingEvidenceDTO(BaseModel):
+    id: UUID
     kind: str
     ref_id: UUID
     snapshot: dict[str, Any] = Field(default_factory=dict)

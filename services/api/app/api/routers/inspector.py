@@ -109,7 +109,7 @@ async def assigned_detail(
             computed_metrics=row.computed_metrics or {},
             detected_at=row.detected_at,
             evidence=[
-                FindingEvidenceDTO(kind=e.kind, ref_id=e.ref_id, snapshot=e.snapshot or {})
+                FindingEvidenceDTO(id=e.id, kind=e.kind, ref_id=e.ref_id, snapshot=e.snapshot or {})
                 for e in row.evidence
             ],
             assignment_note=row.assignment_note,

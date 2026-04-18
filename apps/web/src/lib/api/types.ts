@@ -63,6 +63,7 @@ export interface FindingSummary {
 }
 
 export interface FindingEvidence {
+  id: string;
   kind: "land_parcel" | "real_estate";
   ref_id: string;
   snapshot: Record<string, unknown>;

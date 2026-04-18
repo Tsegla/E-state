@@ -138,7 +138,7 @@ export default function InspectorFindingPage() {
 
   useEffect(() => {
     if (!truthSource || !truthEvidenceId || truthSource === "field_override") return;
-    const ev = finding?.evidence.find((e) => e.ref_id === truthEvidenceId);
+    const ev = finding?.evidence.find((e) => e.id === truthEvidenceId);
     if (!ev) return;
     const vals = truthValuesFromEvidence(ev);
     setActualObjectType(vals.object_type);
@@ -148,7 +148,7 @@ export default function InspectorFindingPage() {
 
   const chooseEvidence = (ev: FindingEvidence) => {
     setTruthSource(ev.kind === "land_parcel" ? "dzk" : "drrp");
-    setTruthEvidenceId(ev.ref_id);
+    setTruthEvidenceId(ev.id);
     setValidationError(null);
   };
 
@@ -274,7 +274,7 @@ export default function InspectorFindingPage() {
               evidence={dzkEvidence}
               fields={DZK_FIELDS}
               otherSide={primaryDrrp}
-              selectedRefId={truthSource === "dzk" ? truthEvidenceId : null}
+              selectedId={truthSource === "dzk" ? truthEvidenceId : null}
               onChoose={chooseEvidence}
             />
             <EvidenceColumn
@@ -283,7 +283,7 @@ export default function InspectorFindingPage() {
               evidence={drrpEvidence}
               fields={DRRP_FIELDS}
               otherSide={primaryDzk}
-              selectedRefId={truthSource === "drrp" ? truthEvidenceId : null}
+              selectedId={truthSource === "drrp" ? truthEvidenceId : null}
               onChoose={chooseEvidence}
             />
           </div>
@@ -465,7 +465,7 @@ interface EvidenceColumnProps {
   evidence: FindingEvidence[];
   fields: Array<{ key: string; label: string }>;
   otherSide: Record<string, unknown> | undefined;
-  selectedRefId: string | null;
+  selectedId: string | null;
   onChoose: (ev: FindingEvidence) => void;
 }
 
@@ -475,7 +475,7 @@ function EvidenceColumn({
   evidence,
   fields,
   otherSide,
-  selectedRefId,
+  selectedId,
   onChoose,
 }: EvidenceColumnProps) {
   if (evidence.length === 0) {
@@ -497,10 +497,10 @@ function EvidenceColumn({
   return (
     <div className="flex flex-col gap-2">
       {evidence.map((ev) => {
-        const selected = ev.ref_id === selectedRefId;
+        const selected = ev.id === selectedId;
         return (
           <Card
-            key={ev.ref_id}
+            key={ev.id}
             className={
               selected
                 ? "border-forest-700 ring-2 ring-forest-700/30"
