@@ -43,15 +43,15 @@ export default function DashboardPage() {
         listFindings({ datasetId: latest.id, severity: "info", limit: 1 }),
       ]);
       return {
-        critical: critical.length,
-        warning: warning.length,
-        info: info.length,
+        critical: critical.meta?.total ?? 0,
+        warning: warning.meta?.total ?? 0,
+        info: info.meta?.total ?? 0,
       };
     },
     enabled: !!latest?.id,
   });
 
-  const findingsTotal = findingsQuery.data ? latest?.findings_total ?? 0 : latest?.findings_total ?? 0;
+  const findingsTotal = findingsQuery.data?.meta?.total ?? latest?.findings_total ?? 0;
 
   return (
     <BackOfficeShell>

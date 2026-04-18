@@ -2,7 +2,7 @@
  * Named endpoint functions. Components never format URLs themselves.
  */
 
-import { apiFetch } from "./client";
+import { apiFetch, apiFetchWithMeta } from "./client";
 import type {
   AssignInspectorRequest,
   BudgetImpact,
@@ -46,7 +46,7 @@ export const listFindings = (params: {
   page?: number;
   limit?: number;
 }) =>
-  apiFetch<FindingSummary[]>("/api/findings", {
+  apiFetchWithMeta<FindingSummary[]>("/api/findings", {
     query: {
       dataset_id: params.datasetId,
       severity: params.severity,

@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import require_analyst, session_dep
@@ -63,17 +63,22 @@ async def list_findings(
         stmt = stmt.where(FindingRow.finding_type == finding_type)
         count_stmt = count_stmt.where(FindingRow.finding_type == finding_type)
 
-    severity_order = {"critical": 0, "warning": 1, "info": 2}
+    severity_rank = case(
+        (FindingRow.severity == "critical", 0),
+        (FindingRow.severity == "warning", 1),
+        (FindingRow.severity == "info", 2),
+        else_=99,
+    )
     rows = (
         session.execute(
-            stmt.order_by(FindingRow.severity.asc(), FindingRow.detected_at.desc())
+            stmt.order_by(severity_rank.asc(), FindingRow.detected_at.desc())
+            .order_by(FindingRow.id.asc())
             .offset((page - 1) * limit)
             .limit(limit)
         )
         .scalars()
         .all()
     )
-    rows = sorted(rows, key=lambda r: (severity_order.get(r.severity, 99), -r.detected_at.timestamp()))
     total = int(session.execute(count_stmt).scalar_one())
     items = [_to_summary(r) for r in rows]
     return ok(items, meta=Meta(total=total, page=page, limit=limit))

@@ -102,6 +102,11 @@ export const uk = {
       detected: "Виявлено",
       status: "Статус",
     },
+    pagination: {
+      showing: "Показано {start}-{end} з {total}",
+      prev: "Назад",
+      next: "Далі",
+    },
     empty: "Жодної розбіжності не знайдено.",
     detail: {
       backToList: "Назад до списку",

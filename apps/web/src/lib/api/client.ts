@@ -3,7 +3,7 @@
  * typed errors. All calls go through here — no ad-hoc ``fetch`` in components.
  */
 
-import type { ApiError, ApiResponse } from "./types";
+import type { ApiError, ApiResponse, Meta } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
@@ -58,7 +58,12 @@ export interface RequestOptions {
   anonymous?: boolean;
 }
 
-export async function apiFetch<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+export interface ApiDataWithMeta<T> {
+  data: T;
+  meta?: Meta;
+}
+
+async function requestEnvelope<T>(path: string, opts: RequestOptions = {}): Promise<ApiResponse<T>> {
   const headers: Record<string, string> = {};
   if (!opts.form) headers["Content-Type"] = "application/json";
   if (!opts.anonymous) {
@@ -82,7 +87,7 @@ export async function apiFetch<T>(path: string, opts: RequestOptions = {}): Prom
     throw new ApiRequestError("INTERNAL", "Empty response", undefined, res.status);
   }
   if (payload.success) {
-    return payload.data;
+    return payload;
   }
   throw new ApiRequestError(
     payload.error.code,
@@ -90,4 +95,17 @@ export async function apiFetch<T>(path: string, opts: RequestOptions = {}): Prom
     payload.error.details,
     res.status,
   );
+}
+
+export async function apiFetchWithMeta<T>(
+  path: string,
+  opts: RequestOptions = {},
+): Promise<ApiDataWithMeta<T>> {
+  const payload = await requestEnvelope<T>(path, opts);
+  return { data: payload.data, meta: payload.meta };
+}
+
+export async function apiFetch<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+  const payload = await requestEnvelope<T>(path, opts);
+  return payload.data;
 }

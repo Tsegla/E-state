@@ -2,8 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
 
 import { BackOfficeShell } from "@/components/back-office-shell";
 import { SeverityBadge, StatusBadge } from "@/components/status-badge";
@@ -24,6 +24,7 @@ import type { FindingStatus, FindingSummary, Severity } from "@/lib/api/types";
 
 const SEVERITY_OPTIONS: (Severity | "")[] = ["", "critical", "warning", "info"];
 const STATUS_OPTIONS: (FindingStatus | "")[] = ["", "open", "in_review", "resolved", "dismissed"];
+const FINDINGS_PAGE_SIZE = 100;
 
 function metricsPreview(finding: FindingSummary): string {
   const m = finding.computed_metrics;
@@ -59,11 +60,13 @@ export default function FindingsPage() {
 }
 
 function FindingsPageInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const datasetFromQuery = searchParams.get("dataset") ?? undefined;
 
   const [severity, setSeverity] = useState<Severity | "">("");
   const [status, setStatus] = useState<FindingStatus | "">("");
+  const [page, setPage] = useState(1);
 
   const datasetsQuery = useQuery({ queryKey: ["datasets"], queryFn: listDatasets });
   const datasetId = useMemo(
@@ -72,18 +75,28 @@ function FindingsPageInner() {
   );
 
   const findingsQuery = useQuery({
-    queryKey: ["findings", datasetId, severity, status],
+    queryKey: ["findings", datasetId, severity, status, page],
     queryFn: () =>
       listFindings({
         datasetId: datasetId!,
         severity: severity || undefined,
         status: status || undefined,
-        limit: 100,
+        page,
+        limit: FINDINGS_PAGE_SIZE,
       }),
     enabled: !!datasetId,
   });
 
-  const rows = findingsQuery.data ?? [];
+  useEffect(() => {
+    setPage(1);
+  }, [datasetId, severity, status]);
+
+  const rows = findingsQuery.data?.data ?? [];
+  const total = findingsQuery.data?.meta?.total ?? rows.length;
+  const shownStart = total === 0 ? 0 : (page - 1) * FINDINGS_PAGE_SIZE + 1;
+  const shownEnd = total === 0 ? 0 : Math.min(page * FINDINGS_PAGE_SIZE, total);
+  const canGoPrev = page > 1;
+  const canGoNext = shownEnd < total;
   const dataset = datasetsQuery.data?.find((d) => d.id === datasetId);
 
   return (
@@ -126,6 +139,12 @@ function FindingsPageInner() {
                 </Button>
               ))}
             </div>
+            <p className="mt-3 text-meta text-ink-muted">
+              {uk.findings.pagination.showing
+                .replace("{start}", String(shownStart))
+                .replace("{end}", String(shownEnd))
+                .replace("{total}", String(total))}
+            </p>
           </CardHeader>
           <CardContent>
             {findingsQuery.isLoading ? (
@@ -149,9 +168,7 @@ function FindingsPageInner() {
                     <TableRow
                       key={finding.id}
                       className="cursor-pointer"
-                      onClick={() => {
-                        window.location.href = `/findings/${finding.id}`;
-                      }}
+                      onClick={() => router.push(`/findings/${finding.id}`)}
                     >
                       <TableCell>
                         <SeverityBadge severity={finding.severity} />
@@ -174,6 +191,24 @@ function FindingsPageInner() {
                 </TableBody>
               </Table>
             )}
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!canGoPrev || findingsQuery.isLoading}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              >
+                {uk.findings.pagination.prev}
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!canGoNext || findingsQuery.isLoading}
+                onClick={() => setPage((prev) => prev + 1)}
+              >
+                {uk.findings.pagination.next}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
