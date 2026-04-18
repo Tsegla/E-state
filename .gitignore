@@ -1,0 +1,2 @@
+# Upstream ECC clone (large); reinstall: git clone https://github.com/affaan-m/everything-claude-code.git .vendor/everything-claude-code
+.vendor/
