@@ -7,35 +7,34 @@
 | Tool | Version | Why |
 |---|---|---|
 | Python | 3.12+ | Backend |
-| [`uv`](https://github.com/astral-sh/uv) | latest | Python env + deps |
+| [`uv`](https://github.com/astral-sh/uv) | latest | Python env + deps (repo root is a uv workspace) |
 | Node.js | 20 LTS+ | Web |
-| `pnpm` | 9+ | Web deps |
+| `npm` | 10+ (ships with Node) | Web deps |
 | SQLite | 3.40+ (bundled with Python) | Dev DB |
 | Git LFS (optional) | | Only if source xlsx is tracked |
 
 Install on macOS (Apple Silicon or Intel):
 
 ```bash
-brew install uv pnpm node@20
+brew install uv node@20
 ```
 
 ## 2. One-time bootstrap
+
+The repo root is a uv workspace, so all `uv run …` commands work from `BEST Hackathon/` directly — no need to `cd services/api`.
 
 ```bash
 git clone <repo-url>
 cd "BEST Hackathon"
 
-# Backend
-cd services/api
-uv sync                      # creates .venv from pyproject.toml
-uv run alembic upgrade head  # initialise SQLite dev DB
-cd ../..
+# Backend (installs both runtime and dev extras into a single .venv at the repo root)
+uv sync --all-extras
+uv run alembic -c services/api/alembic.ini upgrade head   # init SQLite dev DB
 
 # Web
 cd apps/web
-pnpm install
-pnpm run generate:api        # emits src/lib/api/types.ts from OpenAPI
-cd ../..
+npm install
+cd ..
 ```
 
 ## 3. Running the stack
@@ -43,26 +42,24 @@ cd ../..
 Two terminals.
 
 ```bash
-# Terminal 1 — API
-cd services/api
-uv run uvicorn app.main:app --reload --port 8000
+# Terminal 1 — API (from repo root)
+uv run uvicorn --app-dir services/api app.main:app --reload --port 8000
 
 # Terminal 2 — Web
 cd apps/web
-pnpm dev                     # http://localhost:3000
+npm run dev                  # http://localhost:3000
 ```
 
 Healthcheck: `curl http://localhost:8000/healthz` returns `{"ok": true}`.
 
 ## 4. Seeding data for the demo
 
-The two source files provided with the hackathon live under `docs/` and are used as-is:
+The two source files provided with the hackathon live under `docs/` and are used as-is. Run from the repo root:
 
 ```bash
-cd services/api
-uv run python -m app.cli seed-from-docs \
-  --zem "../../docs/ДРРП земля.xlsx" \
-  --ner "../../docs/ДРРП нерухомість.xlsx" \
+uv run e-state seed-from-docs \
+  --zem "docs/ДРРП земля.xlsx" \
+  --ner "docs/ДРРП нерухомість.xlsx" \
   --label "Сокаль demo"
 ```
 
@@ -110,55 +107,53 @@ Copy to `.env` (not checked in) before running. CI uses GitHub Actions environme
 
 ## 6. Everyday workflows
 
+### Mint a demo JWT
+
+```bash
+uv run e-state token --subject demo --role analyst
+# paste the token into apps/web/.env.local as NEXT_PUBLIC_DEMO_TOKEN=<token>
+```
+
 ### Run the matcher manually
 
 ```bash
-uv run python -m app.cli run-matcher --dataset-id 3c1b...
-```
-
-### Regenerate OpenAPI types after a Pydantic change
-
-```bash
-# Terminal 1 must be running the API
-cd apps/web
-pnpm run generate:api
+uv run e-state run-matcher --dataset-id 3c1b...
 ```
 
 ### Run tests
 
 ```bash
-# Backend
-cd services/api
-uv run pytest -q                                 # full suite
-uv run pytest tests/matcher/test_area_delta.py   # single detector
-uv run pytest -k baseline --runslow              # baselines on real data
+# Backend (from repo root)
+uv run pytest services/api/tests -q                                 # full suite
+uv run pytest services/api/tests/test_matcher_detectors.py          # single module
 
 # Web
 cd apps/web
-pnpm test                                        # vitest unit
-pnpm test:e2e                                    # Playwright E2E
+npm run build                                    # production build sanity check
 ```
 
 ### Lint & format
 
 ```bash
 # Backend
-uv run ruff check .
-uv run ruff format .
-uv run mypy app
+uv run ruff check services/api
+uv run ruff format services/api
+uv run mypy services/api/app
 
 # Web
-pnpm lint
-pnpm typecheck
+cd apps/web
+npm run lint
+npx tsc --noEmit
 ```
 
 ## 7. Common pitfalls
 
-- **"ModuleNotFoundError: openpyxl"** — run `uv sync`; it's in `pyproject.toml`.
+- **"ModuleNotFoundError: openpyxl"** — run `uv sync --all-extras`; it's in `pyproject.toml`.
 - **Excel serial dates look like small integers.** That's Excel; use the helper from [data-dictionary.md §4](data-dictionary.md#4-excel-serial--iso-date).
 - **OWNER_NAME_MISMATCH never fires.** Expected on the supplied dataset (names are clean). Don't "fix" the detector; write a fixture that proves it fires.
 - **`intended_use_code` is empty.** Many rows don't start with a numeric prefix (`Для індивідуального житлового…`). Treat as `None`, let downstream detectors skip.
-- **Port 3000 busy.** `PORT=3001 pnpm dev`.
+- **Port 3000 busy.** `PORT=3001 npm run dev`.
+- **`uv run e-state` says `No such file or directory`.** You're in a subdirectory that isn't part of the uv workspace, or you forgot `uv sync --all-extras`. Run either from the repo root, or `cd services/api` first.
 
 ## 8. Directory cheatsheet
 

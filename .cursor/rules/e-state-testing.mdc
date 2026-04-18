@@ -45,5 +45,5 @@ Required checks in `tests/security/test_pii.py`:
 ## CI guardrails
 
 - `pytest --cov --cov-fail-under=80`.
-- `pnpm test -- --coverage` with line coverage ≥ 80 %.
+- `npm test -- --coverage` (Vitest) with line coverage ≥ 80 % once a `test` script exists in `apps/web/package.json`; until then `npm run build` must pass on CI.
 - E2E runs on every PR against an ephemeral environment that seeds the demo dataset automatically (see `docs/setup.md`).

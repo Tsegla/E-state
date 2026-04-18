@@ -8,7 +8,7 @@
 
 - **Backend** — FastAPI + Pandas (data core) + SQLAlchemy + SQLite (dev) / Postgres (prod)
 - **Web** — Next.js 15 App Router + Tailwind CSS + Shadcn/ui
-- **Tooling** — `uv` for Python, `pnpm` for JS
+- **Tooling** — `uv` for Python, `npm` for JS
 
 ## Repo layout
 
@@ -22,16 +22,15 @@ docs/                     All authoritative docs (architecture, matcher spec, et
 ## Quick start
 
 ```bash
-# Backend
-cd services/api
-uv sync
-uv run alembic upgrade head
-uv run uvicorn app.main:app --reload --port 8000
+# Backend — run from the repo root (uv workspace picks up services/api automatically)
+uv sync --all-extras
+uv run e-state seed-from-docs          # ingest + match on sample data (~40s)
+uv run uvicorn --app-dir services/api app.main:app --reload --port 8000
 
 # Web (in another terminal)
 cd apps/web
-pnpm install
-pnpm dev
+npm install
+npm run dev
 ```
 
 Full setup and seeding instructions: [docs/setup.md](docs/setup.md).

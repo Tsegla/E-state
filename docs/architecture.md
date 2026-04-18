@@ -116,7 +116,7 @@ sequenceDiagram
 | Web | Next.js 15 App Router + Tailwind + Shadcn/ui | Matches [design-brief.md](design-brief.md), SSR for citizen portal SEO |
 | Icons | Lucide-React | Thin stroke, matches brief |
 | Auth | JWT (staff), no auth on citizen portal (rate-limited + CAPTCHA) | MVP scope |
-| Package managers | `uv` (Python), `pnpm` (JS) | See [setup.md](setup.md) |
+| Package managers | `uv` (Python), `npm` (JS) | See [setup.md](setup.md) |
 
 ## 6. Deployment topology
 

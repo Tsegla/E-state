@@ -1,0 +1,10 @@
+# Repo-root uv workspace.
+#
+# Lets ``uv run e-state ...`` work from any directory under the repo:
+#   uv run e-state token --subject demo --role analyst
+#   uv run e-state seed-from-docs
+#
+# The actual Python package lives in ``services/api``.
+
+[tool.uv.workspace]
+members = ["services/api"]

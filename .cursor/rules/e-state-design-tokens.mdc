@@ -21,7 +21,7 @@ Canonical tokens in `apps/web/tailwind.config.ts`:
 
 ## Components
 
-- Use Shadcn primitives only (`Button`, `Badge`, `Table`, `Dialog`, `DropdownMenu`, `Select`, `Input`, `Label`, `Textarea`, `Tabs`, `Sheet`, `Toast`, `Skeleton`). Install via `pnpm dlx shadcn@latest add …`.
+- Use Shadcn primitives only (`Button`, `Badge`, `Table`, `Dialog`, `DropdownMenu`, `Select`, `Input`, `Label`, `Textarea`, `Tabs`, `Sheet`, `Toast`, `Skeleton`). Install via `npx shadcn@latest add …`.
 - Icons from `lucide-react` only. Stroke width 1.75. Sizes: 20 px in tables, 24 px in hero sections.
 - Prohibited libraries: `antd`, `@mui/*`, `react-select`, `chakra-ui`, `semantic-ui`.
 

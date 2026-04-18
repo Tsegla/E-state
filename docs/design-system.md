@@ -131,5 +131,5 @@ Pulled from [.cursor/rules/web-design-quality.mdc](../.cursor/rules/web-design-q
 
 - [ ] `apps/web/tailwind.config.ts` declares the token palette above.
 - [ ] `apps/web/src/styles/globals.css` imports the Inter variable font via `next/font`.
-- [ ] Shadcn components are installed via `pnpm dlx shadcn@latest add button badge table dialog dropdown-menu select input label textarea tabs sheet toast skeleton`.
+- [ ] Shadcn components are installed via `npx shadcn@latest add button badge table dialog dropdown-menu select input label textarea tabs sheet toast skeleton`.
 - [ ] A Storybook-free `apps/web/src/app/(internal)/design` page renders every badge, button and metric card once, for visual regression eyeballing during the demo.

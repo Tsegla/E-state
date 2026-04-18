@@ -8,7 +8,7 @@ import { Suspense, useMemo, useState } from "react";
 import { BackOfficeShell } from "@/components/back-office-shell";
 import { SeverityBadge, StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -101,31 +101,29 @@ function FindingsPageInner() {
         <Card>
           <CardHeader>
             <CardTitle className="text-h2">{uk.findings.filters.severity}</CardTitle>
-            <CardDescription>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {SEVERITY_OPTIONS.map((s) => (
-                  <Button
-                    key={s || "all"}
-                    size="sm"
-                    variant={severity === s ? "primary" : "secondary"}
-                    onClick={() => setSeverity(s)}
-                  >
-                    {s ? uk.severity[s] : uk.findings.filters.all}
-                  </Button>
-                ))}
-                <span className="mx-2 text-ink/20">|</span>
-                {STATUS_OPTIONS.map((s) => (
-                  <Button
-                    key={s || "all-status"}
-                    size="sm"
-                    variant={status === s ? "primary" : "secondary"}
-                    onClick={() => setStatus(s)}
-                  >
-                    {s ? uk.status[s] : uk.findings.filters.all}
-                  </Button>
-                ))}
-              </div>
-            </CardDescription>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-small">
+              {SEVERITY_OPTIONS.map((s) => (
+                <Button
+                  key={s || "all"}
+                  size="sm"
+                  variant={severity === s ? "primary" : "secondary"}
+                  onClick={() => setSeverity(s)}
+                >
+                  {s ? uk.severity[s] : uk.findings.filters.all}
+                </Button>
+              ))}
+              <span className="mx-2 text-ink/20">|</span>
+              {STATUS_OPTIONS.map((s) => (
+                <Button
+                  key={s || "all-status"}
+                  size="sm"
+                  variant={status === s ? "primary" : "secondary"}
+                  onClick={() => setStatus(s)}
+                >
+                  {s ? uk.status[s] : uk.findings.filters.all}
+                </Button>
+              ))}
+            </div>
           </CardHeader>
           <CardContent>
             {findingsQuery.isLoading ? (

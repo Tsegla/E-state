@@ -10,7 +10,7 @@ Authoritative contract: [docs/api-contract.md](mdc:docs/api-contract.md).
 ## OpenAPI is the source of truth
 
 - FastAPI generates `GET /openapi.json` at startup. Pydantic v2 models are the schema definitions.
-- Web types live in `apps/web/src/lib/api/types.ts`, **regenerated** by `pnpm run generate:api` which runs `openapi-typescript` against the live OpenAPI doc.
+- Web types live in `apps/web/src/lib/api/types.ts`, **regenerated** from `apps/web` with `npx openapi-typescript http://localhost:8000/openapi.json -o src/lib/api/types.ts` (API must be running locally).
 - When a Pydantic model changes, the web `types.ts` must be regenerated **in the same commit**.
 - Do not hand-write duplicate TS interfaces that mirror Pydantic DTOs; import from `types.ts`.
 

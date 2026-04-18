@@ -261,7 +261,8 @@ Response:
 All DTOs live in `services/api/app/api/dto/` and are Pydantic v2 models. The corresponding TS types are emitted by:
 
 ```bash
-pnpm --filter web run generate:api
+cd apps/web
+npx openapi-typescript http://localhost:8000/openapi.json -o src/lib/api/types.ts
 ```
 
 which runs `openapi-typescript` against `http://localhost:8000/openapi.json` and writes `apps/web/src/lib/api/types.ts`. This is enforced by the `e-state-api-contracts` rule.

@@ -95,7 +95,7 @@ Deletion workflows live behind a staff-admin-only `/admin/retention` page (post-
 - Rate limiting: 5 / 15 min / IP on citizen lookup; 60 / min on authenticated endpoints.
 - CAPTCHA on citizen portal.
 - Secrets in env vars only; no secrets in git. [.env.example](../services/api/.env.example) is the canonical list.
-- Dependency scanning in CI (`pip-audit` + `pnpm audit`).
+- Dependency scanning in CI (`pip-audit` + `npm audit`).
 
 ## 8. What a "правова довідка" slide in the demo should say
 
