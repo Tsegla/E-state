@@ -143,6 +143,7 @@ export const uk = {
     AREA_PORTFOLIO_DELTA: "Розбіжність площ",
     OWNER_NAME_MISMATCH: "Невідповідність ПІБ",
     TERMINATED_BUT_ACTIVE: "Припинено, але активно",
+    TERMINATED_RIGHTS_MISMATCH: "Право припинено, земля активна",
     MISSING_OWNER: "Відсутній власник",
     DUPLICATE_REGISTRATION: "Дубль реєстрації",
   },

@@ -1,0 +1,7 @@
+﻿finding_type,severity,count
+AREA_PORTFOLIO_DELTA,critical,859
+USE_VS_OBJECT_MISMATCH,warning,5419
+LAND_NO_REAL_ESTATE,warning,335
+AREA_PORTFOLIO_DELTA,warning,56
+MISSING_OWNER,warning,1
+REAL_ESTATE_NO_LAND,warning,1

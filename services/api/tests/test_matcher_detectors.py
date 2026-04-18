@@ -156,6 +156,23 @@ def test_use_vs_object_mismatch_fires_on_industrial_object_on_residential_land()
     assert len(drafts) == 1
 
 
+def test_terminated_rights_mismatch_fires_per_terminated_record() -> None:
+    ctx = _ctx(
+        [_land_row()],
+        [
+            _estate_row(terminated_at=pd.Timestamp("2022-03-01")),
+            _estate_row(id=uuid4(), terminated_at=pd.Timestamp("2023-05-01")),
+            _estate_row(id=uuid4()),  # still active — should NOT fire
+        ],
+    )
+    drafts = REGISTRY["TERMINATED_RIGHTS_MISMATCH"](ctx)
+    assert len(drafts) == 2
+    assert all(d.severity is Severity.WARNING for d in drafts)
+    dates = {d.computed_metrics["drrp_termination_date"] for d in drafts}
+    assert dates == {"2022-03-01T00:00:00", "2023-05-01T00:00:00"}
+    assert all(d.computed_metrics["land_status"] == "active" for d in drafts)
+
+
 def test_real_estate_no_land_fires_when_no_matching_parcel() -> None:
     ctx = _ctx(
         [],

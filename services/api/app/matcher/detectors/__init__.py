@@ -10,6 +10,7 @@ from app.matcher.detectors.missing_owner import detect_missing_owner
 from app.matcher.detectors.owner_name_mismatch import detect_owner_name_mismatch
 from app.matcher.detectors.real_estate_no_land import detect_real_estate_no_land
 from app.matcher.detectors.terminated_but_active import detect_terminated_but_active
+from app.matcher.detectors.terminated_rights_mismatch import detect_terminated_rights_mismatch
 from app.matcher.detectors.use_vs_object_mismatch import detect_use_vs_object_mismatch
 from app.matcher.draft import FindingDraft
 
@@ -22,6 +23,7 @@ REGISTRY: dict[str, DetectorFn] = {
     "AREA_PORTFOLIO_DELTA": detect_area_portfolio_delta,
     "OWNER_NAME_MISMATCH": detect_owner_name_mismatch,
     "TERMINATED_BUT_ACTIVE": detect_terminated_but_active,
+    "TERMINATED_RIGHTS_MISMATCH": detect_terminated_rights_mismatch,
     "MISSING_OWNER": detect_missing_owner,
     "DUPLICATE_REGISTRATION": detect_duplicate_registration,
 }

@@ -78,11 +78,13 @@ async def get_finding(
     session: Session = Depends(session_dep),
 ) -> ApiResponse[FindingDetailDTO]:
     row = (
-        session.query(FindingRow)
-        .options(joinedload(FindingRow.evidence))
-        .filter(FindingRow.id == finding_id)
+        session.execute(
+            select(FindingRow)
+            .options(joinedload(FindingRow.evidence))
+            .where(FindingRow.id == finding_id)
+        )
         .unique()
-        .one_or_none()
+        .scalar_one_or_none()
     )
     if row is None:
         raise NotFoundError(f"Finding {finding_id} not found")
