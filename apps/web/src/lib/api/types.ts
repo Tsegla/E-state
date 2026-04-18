@@ -55,6 +55,7 @@ export interface FindingSummary {
   id: string;
   dataset_id: string;
   person_tax_id_masked: string;
+  person_name?: string | null;
   finding_type: FindingType;
   severity: Severity;
   status: FindingStatus;

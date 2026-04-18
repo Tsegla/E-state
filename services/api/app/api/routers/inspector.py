@@ -57,12 +57,18 @@ async def assigned(
         .order_by(FindingRow.assigned_at.desc())
         .all()
     )
+    person_ids = {r.person_tax_id for r in rows}
+    person_map = {
+        p.tax_id: p.full_name_raw
+        for p in session.query(PersonRow).filter(PersonRow.tax_id.in_(person_ids)).all()
+    }
     return ok(
         [
             FindingSummaryDTO(
                 id=r.id,
                 dataset_id=r.dataset_id,
                 person_tax_id_masked=mask_tax_id(r.person_tax_id),
+                person_name=person_map.get(r.person_tax_id) or None,
                 finding_type=r.finding_type,  # type: ignore[arg-type]
                 severity=r.severity,  # type: ignore[arg-type]
                 status=r.status,  # type: ignore[arg-type]
@@ -102,6 +108,7 @@ async def assigned_detail(
             id=row.id,
             dataset_id=row.dataset_id,
             person_tax_id_masked=mask_tax_id(row.person_tax_id),
+            person_name=person.full_name_raw if person else None,
             person_name_masked=mask_name(person.full_name_raw if person else ""),
             finding_type=row.finding_type,  # type: ignore[arg-type]
             severity=row.severity,  # type: ignore[arg-type]

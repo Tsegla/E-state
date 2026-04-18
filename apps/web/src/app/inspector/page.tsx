@@ -43,7 +43,12 @@ export default function InspectorQueuePage() {
               <Card className="transition-transform hover:-translate-y-0.5 hover:shadow-lg">
                 <CardHeader>
                   <CardTitle className="flex items-start justify-between gap-2 text-h2">
-                    <span>{uk.findingType[r.finding_type]}</span>
+                    <div className="flex flex-col gap-0.5">
+                      <span>{r.person_name || "—"}</span>
+                      <span className="text-small font-normal text-meta">
+                        {uk.findingType[r.finding_type]}
+                      </span>
+                    </div>
                     <SeverityBadge severity={r.severity} />
                   </CardTitle>
                   <CardDescription className="font-mono text-xs">

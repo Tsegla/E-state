@@ -194,6 +194,7 @@ def test_inspector_queue_only_shows_assigned_findings(client) -> None:
     assert str(assigned_finding_id) in ids
     assert str(sibling_id) not in ids
     assert all(item["status"] == "in_review" for item in items)
+    assert all(item["person_name"] == "Тест Тест Тест" for item in items)
 
 
 def test_assign_transitions_open_to_in_review_and_saves_note(client) -> None:
@@ -335,6 +336,7 @@ def test_inspector_detail_returns_note_and_hides_resolved(client) -> None:
     data = resp.json()["data"]
     assert data["assignment_note"] == "Уточнити межі"
     assert len(data["evidence"]) == 2
+    assert data["person_name"] == "Тест Тест Тест"
 
     # Resolved findings are hidden from the inspector detail view.
     s = client.session_factory()

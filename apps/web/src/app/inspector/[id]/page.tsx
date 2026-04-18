@@ -58,8 +58,36 @@ const DRRP_FIELDS: Array<{ key: string; label: string }> = [
   { key: "terminated_at", label: "Припинено" },
 ];
 
+const SPREADSHEET_ERROR_VALUES = new Set([
+  "#VALUE!",
+  "#N/A",
+  "#NAME?",
+  "#REF!",
+  "#DIV/0!",
+  "#NUM!",
+  "#NULL!",
+]);
+
+function isSpreadsheetErrorValue(value: unknown): boolean {
+  return typeof value === "string" && SPREADSHEET_ERROR_VALUES.has(value.trim().toUpperCase());
+}
+
+function firstValidSnapshotValue(
+  snapshot: Record<string, unknown>,
+  keys: string[],
+): unknown {
+  for (const key of keys) {
+    const value = snapshot[key];
+    if (value === null || value === undefined || value === "") continue;
+    if (isSpreadsheetErrorValue(value)) continue;
+    return value;
+  }
+  return undefined;
+}
+
 function formatSnapshotValue(key: string, value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
+  if (isSpreadsheetErrorValue(value)) return "—";
   if (key.includes("area") && typeof value !== "boolean") {
     const n = Number(value);
     if (!Number.isNaN(n)) return formatArea(n);
@@ -224,7 +252,7 @@ export default function InspectorFindingPage() {
               <SeverityBadge severity={finding.severity} />
             </CardTitle>
             <CardDescription className="font-mono text-xs">
-              {finding.person_tax_id_masked} · {finding.person_name_masked}
+              {finding.person_tax_id_masked} · {finding.person_name || finding.person_name_masked}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2 text-small">
@@ -514,9 +542,12 @@ function EvidenceColumn({
               </CardTitle>
               <CardDescription className="font-mono text-xs">
                 {String(
-                  ev.snapshot.cadastral_no ??
-                    ev.snapshot.address_raw ??
-                    ev.ref_id,
+                  firstValidSnapshotValue(ev.snapshot, [
+                    "cadastral_no",
+                    "address_raw",
+                    "address_norm",
+                    "location_admin",
+                  ]) ?? ev.ref_id,
                 )}
               </CardDescription>
             </CardHeader>

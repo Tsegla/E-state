@@ -47,6 +47,7 @@ class FindingSummaryDTO(BaseModel):
     id: UUID
     dataset_id: UUID
     person_tax_id_masked: str
+    person_name: str | None = None
     finding_type: FindingType
     severity: Severity
     status: FindingStatus
