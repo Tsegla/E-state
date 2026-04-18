@@ -1,2 +1,54 @@
-# Upstream ECC clone (large); reinstall: git clone https://github.com/affaan-m/everything-claude-code.git .vendor/everything-claude-code
+# Upstream ECC clone
 .vendor/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.uv-cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.sqlite
+*.db
+*.sqlite3
+e_state_dev.db
+
+# Alembic scratch
+services/api/alembic/versions/__pycache__/
+
+# Node / Next
+node_modules/
+.next/
+.turbo/
+dist/
+build/
+*.tsbuildinfo
+npm-debug.log
+pnpm-debug.log
+yarn-debug.log
+yarn-error.log
+playwright-report/
+test-results/
+
+# Data samples (raw uploaded xlsx, kept in docs/ for the hackathon)
+data/samples/
+data/uploads/

@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-sans: Inter, "Public Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    color: #1f2421;
+    background: #f7f6f2;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  body {
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background: rgba(63, 94, 59, 0.18);
+  }
+}
+
+@layer components {
+  .text-display {
+    @apply text-4xl font-semibold tracking-tight;
+  }
+  .text-h1 {
+    @apply text-2xl font-semibold;
+  }
+  .text-h2 {
+    @apply text-xl font-medium;
+  }
+  .text-small {
+    @apply text-sm text-ink-muted;
+  }
+  .text-meta {
+    @apply text-xs uppercase tracking-wide text-ink-muted;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
