@@ -63,6 +63,11 @@ export interface ApiDataWithMeta<T> {
   meta?: Meta;
 }
 
+export interface DownloadResult {
+  blob: Blob;
+  filename: string | null;
+}
+
 async function requestEnvelope<T>(path: string, opts: RequestOptions = {}): Promise<ApiResponse<T>> {
   const headers: Record<string, string> = {};
   if (!opts.form) headers["Content-Type"] = "application/json";
@@ -108,4 +113,36 @@ export async function apiFetchWithMeta<T>(
 export async function apiFetch<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const payload = await requestEnvelope<T>(path, opts);
   return payload.data;
+}
+
+export async function apiDownload(path: string, opts: RequestOptions = {}): Promise<DownloadResult> {
+  const headers: Record<string, string> = {};
+  if (!opts.anonymous) {
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(buildUrl(path, opts.query), {
+    method: opts.method ?? "GET",
+    headers,
+    signal: opts.signal,
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const payload = (await res.json().catch(() => null)) as ApiError | null;
+    if (payload && !payload.success) {
+      throw new ApiRequestError(
+        payload.error.code,
+        payload.error.message,
+        payload.error.details,
+        res.status,
+      );
+    }
+    throw new ApiRequestError("INTERNAL", "Download failed", undefined, res.status);
+  }
+
+  const disposition = res.headers.get("Content-Disposition");
+  const match = disposition?.match(/filename="?([^"]+)"?/i);
+  const filename = match?.[1] ?? null;
+  return { blob: await res.blob(), filename };
 }

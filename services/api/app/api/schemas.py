@@ -137,6 +137,27 @@ class CitizenLookupResponse(BaseModel):
 class BudgetImpactDTO(BaseModel):
     total_uah_per_year: float
     by_type: dict[str, float]
+    unresolved_findings: int = 0
+    resolved_findings: int = 0
+    used_verified_assets: int = 0
+    caveats: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    dataset_id: UUID
+
+
+class ReportMetaDTO(BaseModel):
+    generated_at: datetime
+    dataset_id: UUID
+    dataset_label: str
+    filters: dict[str, str]
+    pii_scope: str
+
+
+class ExecutiveSummaryDTO(BaseModel):
+    budget_impact: BudgetImpactDTO
+    top_localities: list[dict[str, int | str]] = Field(default_factory=list)
+    by_status: dict[str, int] = Field(default_factory=dict)
+    metadata: ReportMetaDTO
 
 
 class UploadResponse(BaseModel):

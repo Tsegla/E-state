@@ -6,7 +6,7 @@
 
 - **Base URL:** `${NEXT_PUBLIC_API_URL}` (e.g. `https://api.e-state.example`).
 - **Auth:** Bearer JWT for staff and inspectors; no auth on citizen endpoints (rate-limited + CAPTCHA).
-- **Content type:** `application/json` for all endpoints except `/upload` (multipart).
+- **Content type:** `application/json` for all endpoints except `/upload` (multipart) and binary report download endpoints (`text/csv`, XLSX, PDF).
 - **Timezone:** All timestamps UTC, ISO-8601 with trailing `Z`.
 - **Envelope:** Every non-error response uses:
 
@@ -272,18 +272,101 @@ Response:
 {
   "success": true,
   "data": {
-    "expected_tax_uplift_uah": 4820000,
-    "by_finding_type": {
+    "total_uah_per_year": 4820000,
+    "by_type": {
       "AREA_PORTFOLIO_DELTA": 1720000,
       "LAND_NO_REAL_ESTATE":  2640000,
       "TERMINATED_BUT_ACTIVE": 460000
     },
+    "unresolved_findings": 1242,
+    "resolved_findings": 118,
+    "used_verified_assets": 64,
+    "dataset_id": "3c1b...",
+    "generated_at": "2026-04-18T10:45:00Z",
     "caveats": [
       "Rates from matcher/config.py; tune per ОТГ before publishing."
     ]
   }
 }
 ```
+
+### 2.9 `GET /reports/executive-summary`
+
+Staff-only JSON summary for dashboards and executive report generation.
+
+Query:
+
+| Name | Type | Notes |
+|---|---|---|
+| `dataset_id` | uuid | required |
+| `severity` | enum | optional |
+| `status` | enum | optional |
+| `finding_type` | enum | optional |
+| `koatuu` | string | optional, prefix match |
+| `q` | string | optional person-name search |
+| `pii_scope` | `masked|full` | defaults `masked`, `full` requires admin |
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "budget_impact": {
+      "total_uah_per_year": 4820000,
+      "by_type": { "LAND_NO_REAL_ESTATE": 2640000 },
+      "unresolved_findings": 1242,
+      "resolved_findings": 118,
+      "used_verified_assets": 64,
+      "dataset_id": "3c1b...",
+      "generated_at": "2026-04-18T10:45:00Z",
+      "caveats": ["..."]
+    },
+    "top_localities": [{ "koatuu": "4624881201", "findings": 73 }],
+    "by_status": { "open": 801, "in_review": 441, "resolved": 118 },
+    "metadata": {
+      "generated_at": "2026-04-18T10:45:00Z",
+      "dataset_id": "3c1b...",
+      "dataset_label": "Сокаль 2026-04-18",
+      "filters": { "dataset_id": "3c1b..." },
+      "pii_scope": "masked"
+    }
+  }
+}
+```
+
+### 2.10 `GET /reports/findings-export`
+
+Binary CSV export of findings with applied filters (pagination-independent full set).
+
+Query:
+
+| Name | Type | Notes |
+|---|---|---|
+| `dataset_id` | uuid | required |
+| `severity` | enum | optional |
+| `status` | enum | optional |
+| `finding_type` | enum | optional |
+| `koatuu` | string | optional |
+| `q` | string | optional |
+| `pii_scope` | `masked|full` | defaults `masked`, `full` requires admin |
+
+Response `200`: `text/csv` with `Content-Disposition: attachment`.
+
+### 2.11 `GET /reports/findings-export.xlsx`
+
+Binary XLSX export with two tabs:
+
+- `findings` — detailed rows.
+- `summary` — counts by status/severity + total estimated uplift.
+
+Response `200`: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
+
+### 2.12 `GET /reports/executive.pdf`
+
+Binary deputy-ready PDF (single-page summary) generated from `executive-summary`.
+
+Response `200`: `application/pdf` with `Content-Disposition: attachment`.
 
 ## 3. DTO catalog
 

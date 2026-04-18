@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table";
 import { uk } from "@/i18n/uk";
 import { formatDateTime, formatArea } from "@/i18n/format";
-import { listDatasets, listFindings } from "@/lib/api/endpoints";
+import { downloadFindingsCsv, downloadFindingsXlsx, listDatasets, listFindings } from "@/lib/api/endpoints";
 import type { FindingStatus, FindingSummary, Severity } from "@/lib/api/types";
 
 const SEVERITY_OPTIONS: (Severity | "")[] = ["", "critical", "warning", "info"];
@@ -60,6 +60,10 @@ export default function FindingsPage() {
 }
 
 function FindingsPageInner() {
+  const handleDownloadError = (error: unknown) => {
+    const message = error instanceof Error ? error.message : uk.common.error;
+    window.alert(message);
+  };
   const router = useRouter();
   const searchParams = useSearchParams();
   const datasetFromQuery = searchParams.get("dataset") ?? undefined;
@@ -109,6 +113,46 @@ function FindingsPageInner() {
             <p className="text-meta text-ink-muted">
               {dataset ? `${dataset.label} · ${formatDateTime(dataset.uploaded_at)}` : uk.common.loading}
             </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!datasetId}
+              onClick={async () => {
+                if (!datasetId) return;
+                try {
+                  await downloadFindingsCsv({
+                    datasetId,
+                    severity: severity || undefined,
+                    status: status || undefined,
+                  });
+                } catch (error) {
+                  handleDownloadError(error);
+                }
+              }}
+            >
+              {uk.findings.actions.exportCsv}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!datasetId}
+              onClick={async () => {
+                if (!datasetId) return;
+                try {
+                  await downloadFindingsXlsx({
+                    datasetId,
+                    severity: severity || undefined,
+                    status: status || undefined,
+                  });
+                } catch (error) {
+                  handleDownloadError(error);
+                }
+              }}
+            >
+              {uk.findings.actions.exportXlsx}
+            </Button>
           </div>
         </div>
 

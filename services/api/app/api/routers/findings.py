@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import case, func, select
+from sqlalchemy import case, exists, func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import require_analyst, session_dep
@@ -18,7 +18,7 @@ from app.api.schemas import (
     FindingEvidenceDTO,
     FindingSummaryDTO,
 )
-from app.db.models import FindingRow, PersonRow
+from app.db.models import FindingRow, LandParcelRow, PersonRow
 from app.domain.enums import FindingStatus
 from app.security.audit import log_action
 from app.security.auth import Principal
@@ -46,6 +46,8 @@ async def list_findings(
     severity: str | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
     finding_type: str | None = Query(default=None),
+    koatuu: str | None = Query(default=None),
+    q: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=50, ge=1, le=200),
     _: Principal = Depends(require_analyst),
@@ -62,6 +64,24 @@ async def list_findings(
     if finding_type:
         stmt = stmt.where(FindingRow.finding_type == finding_type)
         count_stmt = count_stmt.where(FindingRow.finding_type == finding_type)
+    if koatuu:
+        land_exists = (
+            select(LandParcelRow.id)
+            .where(
+                LandParcelRow.dataset_id == dataset_id,
+                LandParcelRow.owner_tax_id == FindingRow.person_tax_id,
+                LandParcelRow.koatuu.is_not(None),
+                LandParcelRow.koatuu.like(f"{koatuu}%"),
+            )
+            .limit(1)
+        )
+        stmt = stmt.where(exists(land_exists))
+        count_stmt = count_stmt.where(exists(land_exists))
+    if q:
+        q_norm = f"%{q.strip().lower()}%"
+        matching_people = select(PersonRow.tax_id).where(PersonRow.full_name_norm.like(q_norm))
+        stmt = stmt.where(FindingRow.person_tax_id.in_(matching_people))
+        count_stmt = count_stmt.where(FindingRow.person_tax_id.in_(matching_people))
 
     severity_rank = case(
         (FindingRow.severity == "critical", 0),

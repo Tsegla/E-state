@@ -115,6 +115,27 @@ export interface UploadResponse {
 export interface BudgetImpact {
   total_uah_per_year: number;
   by_type: Record<string, number>;
+  unresolved_findings: number;
+  resolved_findings: number;
+  used_verified_assets: number;
+  caveats: string[];
+  generated_at: string;
+  dataset_id: string;
+}
+
+export interface ReportMeta {
+  generated_at: string;
+  dataset_id: string;
+  dataset_label: string;
+  filters: Record<string, string>;
+  pii_scope: string;
+}
+
+export interface ExecutiveSummary {
+  budget_impact: BudgetImpact;
+  top_localities: Array<{ koatuu: string; findings: number }>;
+  by_status: Record<string, number>;
+  metadata: ReportMeta;
 }
 
 export interface CitizenAsset {

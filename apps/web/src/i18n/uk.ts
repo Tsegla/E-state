@@ -125,6 +125,10 @@ export const uk = {
       dismiss: "Відхилити",
       resolve: "Закрити",
     },
+    actions: {
+      exportCsv: "Експорт CSV",
+      exportXlsx: "Експорт XLSX",
+    },
   },
   inspector: {
     title: "Моя черга",
@@ -195,6 +199,19 @@ export const uk = {
     methodologyTitle: "Як рахуємо",
     methodology:
       "Оцінка побудована на базових ставках земельного податку та податку на нерухомість. Для кожної розбіжності враховується площа, тип об'єкта та середня ставка в громаді. Це прогноз, не офіційне донарахування.",
+    unresolvedFindings: "Відкриті розбіжності",
+    unresolvedFindingsHint: "Розбіжності зі статусом Відкрито або На перевірці.",
+    resolvedFindings: "Закриті розбіжності",
+    resolvedFindingsHint: "Справи, які вже підтвердив інспектор або закрила команда.",
+    verifiedAssets: "Підтверджені активи",
+    verifiedAssetsHint: "Кількість кейсів, де в розрахунках використано verified_asset.",
+    topLocalitiesTitle: "Пріоритетні локальності",
+    topLocalitiesHint: "КОАТУУ з найбільшою кількістю записів у поточному наборі.",
+    actions: {
+      downloadCsv: "Завантажити CSV",
+      downloadXlsx: "Завантажити XLSX",
+      downloadPdf: "Завантажити PDF",
+    },
     empty: "Розрахуйте звіт після запуску зіставлення.",
   },
   severity: {

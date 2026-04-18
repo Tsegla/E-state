@@ -90,7 +90,12 @@ From [design-brief.md §4](design-brief.md#4-record-details-deep-dive).
 
 - KPI strip: `Очікуване зростання податкових надходжень`, `Резолюції інспекторів`, `% red→green`.
 - Budget-impact chart (Recharts) from `GET /reports/budget-impact`.
-- Export button: CSV of the current `findings` filtered view.
+- Executive summary card from `GET /reports/executive-summary` (top localities + status mix + caveats).
+- Export actions:
+  - `CSV` — `GET /reports/findings-export` with current filters.
+  - `XLSX` — `GET /reports/findings-export.xlsx` with current filters + summary tab.
+  - `PDF` — `GET /reports/executive.pdf` for deputy-ready briefing.
+- PII handling: default `pii_scope=masked`; `full` exports are admin-only and audit-logged.
 
 ## 4. Inspector flow (Інспектор)
 

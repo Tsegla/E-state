@@ -37,7 +37,7 @@ timeline
 | Auth | Shared secret | BankID / ID.gov.ua SSO | Same + inspector mobile FIDO2 |
 | UX surfaces | Back-office, Inspector, Citizen | + Голова ОТГ dashboard, Reports export | + Дія push, Native mobile |
 | Budget-impact | Heuristic from config rates | Per-ОТГ rate tables | Calibrated rates + historical trends |
-| Reporting | CSV export | PDF reports for депутатів | Public transparency reports (aggregate) |
+| Reporting | CSV/XLSX exports + executive PDF (masked by default, audit logged) | Multi-page PDF packs for депутатів | Public transparency reports (aggregate) |
 
 ## 3. Scaling strategy (task 1.4.1)
 
