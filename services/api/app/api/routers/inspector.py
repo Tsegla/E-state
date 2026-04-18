@@ -43,10 +43,18 @@ async def assigned(
     _: Principal = Depends(require_inspector),
     session: Session = Depends(session_dep),
 ) -> ApiResponse[list[FindingSummaryDTO]]:
+    # Inspector queue = findings explicitly handed off by an analyst
+    # (assigned_at is set when status transitions open -> in_review).
+    # Without this filter the queue would drown the assigned item in
+    # thousands of unassigned "open" findings for the same dataset.
     rows = (
         session.query(FindingRow)
-        .filter(FindingRow.dataset_id == dataset_id, FindingRow.status.in_(["open", "in_review"]))
-        .order_by(FindingRow.severity.asc(), FindingRow.detected_at.desc())
+        .filter(
+            FindingRow.dataset_id == dataset_id,
+            FindingRow.status == "in_review",
+            FindingRow.assigned_at.isnot(None),
+        )
+        .order_by(FindingRow.assigned_at.desc())
         .all()
     )
     return ok(

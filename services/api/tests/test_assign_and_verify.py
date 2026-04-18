@@ -154,6 +154,48 @@ def _seed_finding(
         s.close()
 
 
+def test_inspector_queue_only_shows_assigned_findings(client) -> None:
+    """Інспектор має бачити лише ті findings, які явно передав землевпорядник.
+
+    Без цього фільтра один призначений запис губиться серед тисяч непризначених
+    `open`-findings того ж датасету.
+    """
+    assigned_finding_id, _, _ = _seed_finding(client.session_factory, status="open")
+
+    s = client.session_factory()
+    try:
+        assigned_row = s.get(FindingRow, assigned_finding_id)
+        dataset_id = assigned_row.dataset_id
+        person_tax_id = assigned_row.person_tax_id
+        sibling = FindingRow(
+            dataset_id=dataset_id,
+            person_tax_id=person_tax_id,
+            finding_type="LAND_NO_REAL_ESTATE",
+            severity="warning",
+            status="open",
+            computed_metrics={"total_residential_m2": 0},
+        )
+        s.add(sibling)
+        s.commit()
+        sibling_id = sibling.id
+    finally:
+        s.close()
+
+    resp = client.post(
+        f"/api/findings/{assigned_finding_id}/assign",
+        json={"note": "На місце"},
+    )
+    assert resp.status_code == 200, resp.text
+
+    resp = client.get("/api/inspector/findings", params={"dataset_id": str(dataset_id)})
+    assert resp.status_code == 200, resp.text
+    items = resp.json()["data"]
+    ids = [item["id"] for item in items]
+    assert str(assigned_finding_id) in ids
+    assert str(sibling_id) not in ids
+    assert all(item["status"] == "in_review" for item in items)
+
+
 def test_assign_transitions_open_to_in_review_and_saves_note(client) -> None:
     finding_id, _, _ = _seed_finding(client.session_factory)
 
