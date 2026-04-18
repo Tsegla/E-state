@@ -19,8 +19,13 @@ The aesthetic should be clean and "production-ready," avoiding the cluttered loo
     * **Background Blocks:** `#E3C9A9` (Warm Sand)
     * **Alert/Highlight:** `#C97A7F` (Dusty Rose/Red)
     * **Surface:** `#FFFFFF` or very light grey.
-* **UI Components:** Rounded corners (8px–12px), soft depth shadows, and generous whitespace.
-* **Typography:** High-legibility sans-serif (e.g., Inter or Public Sans) to ensure data scanning is effortless.
+* **UI Components:** Rounded corners **(10px for inputs/buttons, 14px–18px for cards, 24px for hero tiles)**, soft depth shadows (`shadow-card`, `shadow-elevated`), and generous whitespace.
+* **Header:** Sticky, pure-white surface with a 36×36 forest-green logo tile (white building glyph). Nav items are rounded-xl pills; the active route is a filled forest-green pill with white text.
+* **Section eyebrow label:** Every primary page header is preceded by a small `11px uppercase tracking-wide` muted label (e.g. "DATA INGESTION", "CROSS-REGISTRY REPORT") to orient the user.
+* **Metric tiles:** White surface, 40×40 tinted icon tile top-left, top-right uppercase badge/meta, value in 30px semibold, sub-label and hint in muted ink.
+* **Hero tiles:** The "Detection rate" card uses a solid forest-green background with white type; the "Last analysis" card uses the warm-sand block.
+* **Status badges:** Rounded-full chip with a 6px leading colored dot (Match = forest, Warning = amber, Critical = rose, Info = blue).
+* **Typography:** High-legibility sans-serif (Inter) with `cv11`/`ss01` features, tabular numerals for all metrics.
 
 ---
 
@@ -28,18 +33,20 @@ The aesthetic should be clean and "production-ready," avoiding the cluttered loo
 
 #### 1. Main Dashboard (“E-state”)
 The entry point for the user, providing a high-level birds-eye view of the system's current status.
-* **Header:** Title “E-state” with subtitle “Asset discrepancy detection system.”
-* **Metrics Row:**
-    * **Total Records:** Overall count of entries in the system.
-    * **Mismatches Found:** Highlighting the scope of work needed.
-    * **Files Processed:** Historical data volume.
-* **Primary CTA:** Large “Upload Data” button to initiate the workflow.
+* **Header:** Eyebrow label + title "E-state" + subtitle "Система виявлення розбіжностей" and a forest-green "Upload data" CTA (large size, trailing arrow) on the right.
+* **Metrics Row (3 tiles):**
+    * **Total Records:** Overall count of entries in the system (icon tile, "Last sync today" badge).
+    * **Mismatches Found:** Highlighted in rose with detection-rate % badge.
+    * **Files Processed:** Historical data volume with dataset count badge.
+* **Content row:** Two-column split.
+    * Left: "Recent Discrepancies" card — list of up to 3 findings with severity dot badges and hover-reveal `ArrowUpRight` glyph; footer row deep-links to the full findings list.
+    * Right stack: Filled forest-green "Detection rate" hero tile (very large % value in white) and a warm-sand "Last analysis" tile with a secondary CTA.
 
 #### 2. Upload Interface
 A focused, distraction-free area for data ingestion.
-* **Drop Zone:** A clean drag-and-drop area for CSV/Excel files.
-* **Feedback Loop:** Visual indicators for "Uploaded" vs. "Ready for Analysis."
-* **Action:** "Start Analysis" button to trigger the backend processing.
+* **Drop Zones:** Two side-by-side dashed rounded-2xl tiles (ДЗК / ДРРП) with a 48×48 sand/forest icon tile (FolderUp → CheckCircle2 once a file is selected) and the chosen filename displayed in forest-700 once assigned.
+* **Feedback Loop:** Footer status ("Обрано файлів: 1/2") + inline amber info notice reminding the user to attach both registry exports.
+* **Action:** Right-aligned large "Upload & run matcher" button with a trailing arrow.
 
 #### 3. Analysis Results (The "Workhorse" View)
 This page must handle dense information without becoming overwhelming.

@@ -28,6 +28,9 @@ export default function CitizenPortalPage() {
     <BackOfficeShell>
       <div className="mx-auto flex max-w-2xl flex-col gap-6">
         <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-ink-muted">
+            {uk.eyebrow.citizen}
+          </span>
           <h1 className="text-display text-ink">{uk.citizen.title}</h1>
           <p className="text-small">{uk.citizen.subtitle}</p>
         </div>

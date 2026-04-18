@@ -27,6 +27,9 @@ export default function InspectorQueuePage() {
     <BackOfficeShell>
       <div className="mx-auto flex max-w-xl flex-col gap-4">
         <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-ink-muted">
+            {uk.eyebrow.inspector}
+          </span>
           <h1 className="text-display text-ink flex items-center gap-2">
             <ClipboardList className="h-6 w-6 text-forest-700" />
             {uk.inspector.title}

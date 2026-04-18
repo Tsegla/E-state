@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
@@ -17,43 +18,89 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { uk } from "@/i18n/uk";
 import { formatDateTime, formatArea } from "@/i18n/format";
-import { downloadFindingsCsv, downloadFindingsXlsx, listDatasets, listFindings } from "@/lib/api/endpoints";
+import {
+  downloadFindingsCsv,
+  downloadFindingsXlsx,
+  listDatasets,
+  listFindings,
+} from "@/lib/api/endpoints";
 import type { FindingStatus, FindingSummary, Severity } from "@/lib/api/types";
 
 const SEVERITY_OPTIONS: (Severity | "")[] = ["", "critical", "warning", "info"];
 const STATUS_OPTIONS: (FindingStatus | "")[] = ["", "open", "in_review", "resolved", "dismissed"];
 const FINDINGS_PAGE_SIZE = 100;
 
-function metricsPreview(finding: FindingSummary): string {
+const ROW_TINT: Record<Severity, string> = {
+  critical: "bg-rose/[0.05] hover:bg-rose/[0.09]",
+  warning: "bg-warning/[0.07] hover:bg-warning/[0.12]",
+  info: "hover:bg-surface-muted",
+};
+
+interface MetricCompare {
+  before?: string | number;
+  after?: string | number;
+  text?: string;
+}
+
+function metricsCompare(finding: FindingSummary): MetricCompare {
   const m = finding.computed_metrics;
   if (finding.finding_type === "AREA_PORTFOLIO_DELTA") {
-    const ratio = Number(m.ratio);
+    const land = Number(m.land_total_m2);
+    const real = Number(m.real_total_m2);
+    if (Number.isFinite(land) && Number.isFinite(real)) {
+      return { before: formatArea(land), after: formatArea(real) };
+    }
     const delta = Number(m.delta_m2);
-    return `Δ ${formatArea(delta)} (×${ratio.toFixed(2)})`;
+    const ratio = Number(m.ratio);
+    return {
+      text: `Δ ${formatArea(delta)} (×${ratio.toFixed(2)})`,
+    };
   }
   if (finding.finding_type === "LAND_NO_REAL_ESTATE") {
-    return `${formatArea(Number(m.total_residential_m2))}`;
+    return { text: formatArea(Number(m.total_residential_m2)) };
   }
   if (finding.finding_type === "OWNER_NAME_MISMATCH") {
-    return `${Number(m.similarity).toFixed(2)} схожість`;
+    return { text: `${Number(m.similarity).toFixed(2)} схожість` };
   }
   if (finding.finding_type === "DUPLICATE_REGISTRATION") {
-    return `${m.distinct_owners} власника(ів)`;
+    return { text: `${m.distinct_owners} власника(ів)` };
   }
   if (finding.finding_type === "TERMINATED_BUT_ACTIVE") {
-    return `${m.active_parcels} активних ділянок`;
+    return { text: `${m.active_parcels} активних ділянок` };
   }
-  return Object.entries(m)
+  const text = Object.entries(m)
     .slice(0, 2)
     .map(([k, v]) => `${k}: ${v}`)
     .join(" · ");
+  return { text };
+}
+
+function MetricsCell({ finding }: { finding: FindingSummary }) {
+  const compare = metricsCompare(finding);
+  if (compare.before !== undefined && compare.after !== undefined) {
+    return (
+      <span className="inline-flex items-center gap-2 font-mono text-xs text-ink tabular">
+        <span>{compare.before}</span>
+        <span aria-hidden className="text-ink-muted">→</span>
+        <span>{compare.after}</span>
+      </span>
+    );
+  }
+  return <span className="text-xs text-ink-muted">{compare.text}</span>;
 }
 
 export default function FindingsPage() {
   return (
-    <Suspense fallback={<BackOfficeShell><p className="py-10 text-center text-small">{uk.common.loading}</p></BackOfficeShell>}>
+    <Suspense
+      fallback={
+        <BackOfficeShell>
+          <p className="py-10 text-center text-small">{uk.common.loading}</p>
+        </BackOfficeShell>
+      }
+    >
       <FindingsPageInner />
     </Suspense>
   );
@@ -105,13 +152,18 @@ function FindingsPageInner() {
 
   return (
     <BackOfficeShell>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-1">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-ink-muted">
+              {uk.eyebrow.findings}
+            </span>
             <h1 className="text-display text-ink">{uk.findings.title}</h1>
             <p className="text-small">{uk.findings.subtitle}</p>
             <p className="text-meta text-ink-muted">
-              {dataset ? `${dataset.label} · ${formatDateTime(dataset.uploaded_at)}` : uk.common.loading}
+              {dataset
+                ? `${dataset.label} · ${formatDateTime(dataset.uploaded_at)}`
+                : uk.common.loading}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -202,34 +254,50 @@ function FindingsPageInner() {
                     <TableHead>{uk.findings.columns.severity}</TableHead>
                     <TableHead>{uk.findings.columns.type}</TableHead>
                     <TableHead>{uk.findings.columns.person}</TableHead>
-                    <TableHead>{uk.findings.columns.metrics}</TableHead>
+                    <TableHead className="text-right">
+                      {uk.findings.columns.metrics}
+                    </TableHead>
                     <TableHead>{uk.findings.columns.status}</TableHead>
-                    <TableHead>{uk.findings.columns.detected}</TableHead>
+                    <TableHead className="text-right">
+                      {uk.findings.columns.detected}
+                    </TableHead>
+                    <TableHead className="w-8" aria-hidden />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {rows.map((finding) => (
                     <TableRow
                       key={finding.id}
-                      className="cursor-pointer"
+                      className={cn("group cursor-pointer", ROW_TINT[finding.severity])}
                       onClick={() => router.push(`/findings/${finding.id}`)}
                     >
-                      <TableCell>
+                      <TableCell className="py-4 align-middle">
                         <SeverityBadge severity={finding.severity} />
                       </TableCell>
-                      <TableCell className="font-medium">
-                        <Link className="hover:underline" href={`/findings/${finding.id}`}>
+                      <TableCell className="py-4 text-left align-middle font-medium">
+                        <Link
+                          className="text-ink hover:underline"
+                          href={`/findings/${finding.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {uk.findingType[finding.finding_type]}
                         </Link>
                       </TableCell>
-                      <TableCell className="font-mono text-xs">
+                      <TableCell className="py-4 text-left align-middle font-mono text-xs text-ink-muted">
                         {finding.person_tax_id_masked}
                       </TableCell>
-                      <TableCell className="text-small">{metricsPreview(finding)}</TableCell>
-                      <TableCell>
+                      <TableCell className="py-4 text-right align-middle tabular">
+                        <MetricsCell finding={finding} />
+                      </TableCell>
+                      <TableCell className="py-4 align-middle">
                         <StatusBadge status={finding.status} />
                       </TableCell>
-                      <TableCell className="text-small">{formatDateTime(finding.detected_at)}</TableCell>
+                      <TableCell className="py-4 text-right align-middle text-xs text-ink-muted tabular">
+                        {formatDateTime(finding.detected_at)}
+                      </TableCell>
+                      <TableCell className="py-4 align-middle text-ink-muted">
+                        <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:text-ink" />
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

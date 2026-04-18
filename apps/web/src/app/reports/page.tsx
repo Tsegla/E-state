@@ -55,6 +55,9 @@ function ReportsPageInner() {
     <BackOfficeShell>
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-ink-muted">
+            {uk.eyebrow.reports}
+          </span>
           <h1 className="text-display text-ink">{uk.reports.title}</h1>
           <p className="text-small">{uk.reports.subtitle}</p>
           {reportGeneratedAt && (
