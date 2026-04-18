@@ -10,19 +10,25 @@ import { uk } from "@/i18n/uk";
 export function BackOfficeShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const activeHref = [
-    "/",
+    "/dashboard",
     "/upload",
     "/findings",
     "/reports",
     "/inspector",
     "/citizen",
-  ].find((href) => (href === "/" ? pathname === "/" : pathname.startsWith(href)));
+  ].find((href) =>
+    href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href),
+  );
 
   return (
     <AppShell
       activeHref={activeHref}
       nav={[
-        { href: "/", label: uk.nav.dashboard, icon: <LayoutDashboard className="h-4 w-4" /> },
+        {
+          href: "/dashboard",
+          label: uk.nav.dashboard,
+          icon: <LayoutDashboard className="h-4 w-4" />,
+        },
         { href: "/upload", label: uk.nav.upload, icon: <UploadCloud className="h-4 w-4" /> },
         { href: "/findings", label: uk.nav.findings, icon: <ListFilter className="h-4 w-4" /> },
         { href: "/reports", label: uk.nav.reports, icon: <FileBarChart2 className="h-4 w-4" /> },
