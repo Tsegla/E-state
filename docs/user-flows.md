@@ -71,16 +71,20 @@ From [design-brief.md §3](design-brief.md#3-analysis-results-the-workhorse-view
 - Row click → `/datasets/:id/findings/:findingId`.
 - Row actions: `Призначити інспектору`, `Відхилити`.
 
-### 3.4 `/datasets/:id/findings/:findingId`
+### 3.4 `/findings/:findingId`
 
 From [design-brief.md §4](design-brief.md#4-record-details-deep-dive).
 
-- **Header:** finding type, severity badge, person full name, `Призначити інспектору` button.
+- **Header:** finding type, severity badge, person full name, status pill.
+- **Assignment banner** (when `assigned_at` is set): shows timestamp + the analyst's note to the inspector, green-outlined card using `bg-surface-muted`.
+- **Actions card — `Призначити інспектору`:**
+  - Expands into a `Textarea` (`Нотатка для інспектора`) + two buttons (`Передати на перевірку`, `Скасувати`).
+  - `POST /findings/{id}/assign` with `{ note }`; on 200 the finding status flips to `in_review` and the banner appears.
+  - The button is disabled when `status !== "open"` with a subtitle explaining why.
 - **Split-screen:** left card `ДЗК` (all the person's `land_parcel` rows for this dataset), right card `ДРРП` (all `real_estate` rows). Divergent fields auto-highlighted using the rose tone from the palette.
 - **Finding computed metrics:** plain-language explanation per detector, e.g. for `AREA_PORTFOLIO_DELTA`:
   > Сумарна площа нерухомості (6 989.7 м²) у 7.7 раз перевищує площу земельних ділянок (903 м²).
-- **Visits timeline:** chronological list of `FieldVisit` entries.
-- **Actions row:** `Resolve manually`, `Dismiss` (with reason), `Assign to inspector`.
+- **Visits timeline:** chronological list of `FieldVisit` entries; rows that produced a `verified_asset` show the chosen `source_of_truth` badge (`ДЗК`, `ДРРП`, `Огляд`).
 
 ### 3.5 `/datasets/:id/reports`
 
@@ -98,23 +102,25 @@ Routes under `apps/web/src/app/(inspector)/`, mobile-first. Every page is usable
 - Sticky filter: `Сьогодні`, `Цього тижня`, `Усі`.
 - Each card: severity stripe, person name, object type hint, КОАТУУ, address fragment.
 
-### 4.2 `/inspector/finding/:id`
+### 4.2 `/inspector/:id` — combined detail + visit form
 
-- Read-only finding summary (same explanation as back-office).
-- Two-column ДЗК vs ДРРП collapsed by default into an accordion on mobile.
-- **Primary CTA:** `Розпочати огляд`.
+Data source: `GET /inspector/findings/:id` (inspector-scoped; returns 404 for `resolved` findings so the mobile queue stays clean).
 
-### 4.3 `/inspector/finding/:id/visit`
+Sections, top-to-bottom:
 
-Bottom-sheet form, five steps, each 1 fingerprint tall:
+1. **Summary card** — finding type, severity, masked РНОКПП, first 4 computed metrics.
+2. **Assignment-note banner** — rendered when `assignment_note` is non-empty. Shows the analyst's free-text guidance. This is the entire reason the note lives on `finding` (not only in `audit_log`): the inspector needs to read it on site.
+3. **Compare view — `Що показують реєстри`:** two columns, `ДЗК (земля)` and `ДРРП (нерухомість)`. Each column lists the key fields from the corresponding `finding_evidence.snapshot`. Fields that differ between ДЗК and ДРРП are highlighted with the rose tone (`bg-rose/10`). Each column has an `Обрати як істину` button that selects that snapshot as the source of truth; the selected card gets a forest ring.
+4. **Truth-source selector — `Яке джерело відповідає дійсності?`:** three buttons — `Дані ДЗК`, `Дані ДРРП`, `Дані з огляду`. Picking ДЗК/ДРРП auto-fills the `Фактичний тип об'єкта`, `Фактична площа`, `Фактичне використання` fields from the chosen snapshot and marks the inputs `readOnly`. Picking `Дані з огляду` keeps the fields editable so the inspector can record the true state when neither registry is right.
+5. **Visit form:** actual object type / area / use / notes + `Автоматичне визначення координат` (fills `gps`) + `Фото на місці` (MVP placeholder, presigned upload comes next iteration).
+6. **Resolution toggle:** `Розв'язано` (default) or `Потребує додаткової перевірки`. Only `resolved` submissions upsert into `verified_asset`.
 
-1. **Фактичний тип об'єкта** — Shadcn `RadioGroup` with the object-type taxonomy + "інше" free-text.
-2. **Фактична площа, м²** — numeric input with keypad.
-3. **Фактичне використання** — select `Житлове | Комерційне | Господарське | Не використовується | Інше`.
-4. **Фото** — opens camera; uploads via presigned URL. Min 1 photo, max 5.
-5. **Нотатки + GPS** — free-text + "Прив'язати геолокацію" toggle.
+On submit: `POST /inspector/visits` with `{ source_of_truth, truth_evidence_id, resolution, actual_* }`. When `resolution === "resolved"`, the server upserts `verified_asset` — the canonical "main table" — and the response includes the upserted record. On success the client routes back to `/inspector`.
 
-On submit: `POST /inspector/visits`. Success screen: `Готово — Розбіжність розв'язано`. The finding jumps to `resolved` state across the system.
+Validation done in the UI before firing the mutation:
+
+- `source_of_truth` is required.
+- When `source_of_truth ∈ {dzk, drrp}`, `truth_evidence_id` must be set (enforced by the compare-view selection).
 
 ## 5. Citizen flow (Мешканець)
 
@@ -140,14 +146,24 @@ Routes under `apps/web/src/app/(citizen)/`. Public, unauthenticated.
 ```mermaid
 stateDiagram-v2
   [*] --> open: Matcher creates finding
-  open --> in_review: Staff assigns to inspector
-  in_review --> resolved: Inspector submits FieldVisit
+  open --> in_review: Analyst POST /findings/{id}/assign
+  in_review --> resolved: Inspector POST /inspector/visits (resolution=resolved)\n+ upsert verified_asset
+  in_review --> in_review: Inspector POST /inspector/visits (resolution=in_review)\n(more work needed)
   open --> resolved: Staff resolves manually
   open --> dismissed: Staff dismisses with reason
   in_review --> dismissed: Staff dismisses mid-review
   dismissed --> open: Reopen (admin only, within 14 days)
   resolved --> open: Reopen (admin only, within 14 days)
 ```
+
+### 6.1 Source-of-truth contract
+
+When the inspector resolves a finding, they **must** record which source the truth came from. This is persisted in two places:
+
+- `field_visit.source_of_truth` + `field_visit.truth_evidence_id` — the decision itself, kept with the visit record for audit.
+- `verified_asset` — the derived canonical record that downstream surfaces (back-office detail, reports, citizen portal) read as the main table. One row per `finding_id`; re-submitting a visit overwrites it.
+
+This way the registry data from ДЗК and ДРРП is never mutated — we keep their snapshots immutable for audit — but everything that reads "what is actually on this parcel" reads the verified row.
 
 ## 7. Empty and error states (mandatory)
 

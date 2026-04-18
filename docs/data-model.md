@@ -15,6 +15,7 @@ erDiagram
   person ||--o{ finding : triggers
   finding ||--o{ finding_evidence : cites
   finding ||--o{ field_visit : resolved_by
+  finding ||--|| verified_asset : truth_of
   inspector ||--o{ field_visit : performs
   staff ||--o{ audit_log : writes
 
@@ -80,6 +81,8 @@ erDiagram
     jsonb computed_metrics
     datetime detected_at
     uuid last_visit_id FK
+    string assignment_note
+    datetime assigned_at
   }
   finding_evidence {
     uuid id PK
@@ -98,7 +101,24 @@ erDiagram
     string actual_use
     string notes
     jsonb gps
+    string source_of_truth
+    uuid truth_evidence_id FK
     datetime created_at
+  }
+  verified_asset {
+    uuid id PK
+    uuid finding_id FK
+    uuid dataset_id FK
+    string person_tax_id
+    string source_of_truth
+    string chosen_ref_kind
+    uuid chosen_ref_id
+    string object_type
+    float area_m2
+    string use
+    string address
+    string verified_by
+    datetime verified_at
   }
   inspector {
     string id PK
@@ -184,6 +204,8 @@ One row per detected discrepancy on one person.
 | `computed_metrics` | `jsonb` | Detector-specific numbers (e.g. `{land_m2: 903, re_m2: 6989.7, ratio: 7.74}`) |
 | `detected_at` | `timestamptz` | |
 | `last_visit_id` | `uuid` FK nullable | Latest resolving visit |
+| `assignment_note` | `text` nullable | Free-text note written by the analyst when handing the finding off for field inspection. Persisted here (not only in `audit_log`, which stores payload hashes) so the inspector can read it. |
+| `assigned_at` | `timestamptz` nullable | Set when the analyst transitions the finding from `open` to `in_review`. |
 
 `finding_type` enum (authoritative, mirror in [data-matcher-spec.md](data-matcher-spec.md)):
 
@@ -227,15 +249,41 @@ Inspector's resolution of a finding.
 | `actual_use` | `text` | What is actually on the parcel |
 | `notes` | `text` | |
 | `gps` | `jsonb` | `{lat, lng, acc_m}` |
+| `source_of_truth` | enum nullable | `dzk | drrp | field_override`. Which registry (or the inspector's own measurement) the inspector confirmed reflects reality. |
+| `truth_evidence_id` | `uuid` FK nullable | Points at the `finding_evidence` row that the inspector accepted as truth. Required when `source_of_truth in {dzk, drrp}`; `null` for `field_override`. |
 | `created_at` | `timestamptz` | |
 
-Writing a `field_visit` row transitions the linked `finding.status` to `resolved` and sets `finding.last_visit_id`.
+Writing a `field_visit` row with `resolution="resolved"` does three things:
 
-### 2.8 `inspector` and `staff`
+1. Transitions the linked `finding.status` to `resolved` and sets `finding.last_visit_id`.
+2. Validates that `truth_evidence_id` (when required) belongs to this finding and that its `kind` matches the chosen `source_of_truth` (`dzk -> land_parcel`, `drrp -> real_estate`).
+3. **Upserts `verified_asset` (§2.10) — the canonical "main table" of verified truth.**
+
+### 2.8 `verified_asset`
+
+The canonical main table of inspector-verified truth. **Downstream surfaces (analyst finding detail, reports, optionally the citizen portal) should prefer a `verified_asset` row over the raw registry snapshots whenever one exists**, because it represents the ground truth after a field visit.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `uuid` PK | |
+| `finding_id` | `uuid` FK UNIQUE | One authoritative record per finding. Re-submitting a visit overwrites the previous verdict. |
+| `dataset_id` | `uuid` FK | Propagated from the finding for cheap per-dataset joins. |
+| `person_tax_id` | `text` | Propagated from the finding. |
+| `source_of_truth` | enum | `dzk | drrp | field_override` |
+| `chosen_ref_kind` | `text` nullable | `land_parcel | real_estate`. Null when `source_of_truth = field_override`. |
+| `chosen_ref_id` | `uuid` nullable | FK-like pointer into `land_parcel.id` or `real_estate.id`, depending on `chosen_ref_kind`. Not enforced as an FK so a later re-upload that deletes the source row does not cascade away the verified record. |
+| `object_type` | `text` nullable | Copied from the chosen evidence snapshot (or from the inspector's `actual_*` fields when `source_of_truth = field_override`). |
+| `area_m2` | `float` nullable | Same sourcing rule as above. |
+| `use` | `text` nullable | Same sourcing rule as above. |
+| `address` | `text` nullable | Same sourcing rule as above. |
+| `verified_by` | `text` | `inspector_id` that signed off. |
+| `verified_at` | `timestamptz` | |
+
+### 2.9 `inspector` and `staff`
 
 Minimal user tables. MVP uses a single shared secret per role; production swaps in OIDC.
 
-### 2.9 `audit_log`
+### 2.10 `audit_log`
 
 Append-only, write-only-via-trigger. Every read of citizen data and every write to `finding` / `field_visit` produces exactly one row.
 
@@ -251,8 +299,8 @@ Append-only, write-only-via-trigger. Every read of citizen data and every write 
 
 ## 3. Derived views
 
-- `v_findings_table` — joins `finding` + `person` + latest `field_visit` for the back-office table. One row per finding.
-- `v_citizen_profile(tax_id)` — returns masked aggregate for the citizen portal. Never exposes other people's records even via joins.
+- `v_findings_table` — joins `finding` + `person` + latest `field_visit` + `verified_asset` for the back-office table. One row per finding. Surfaces verified `object_type` / `area_m2` / `use` when `verified_asset` exists, otherwise falls back to the computed metrics.
+- `v_citizen_profile(tax_id)` — returns masked aggregate for the citizen portal. Never exposes other people's records even via joins. Prefers `verified_asset` over `land_parcel` / `real_estate` when available.
 - `v_budget_impact(dataset_id)` — sums `computed_metrics->>'expected_tax_uplift'` per `severity`. Used by `/reports/budget-impact`.
 
 ## 4. Migration policy

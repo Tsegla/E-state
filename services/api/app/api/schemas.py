@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.domain.enums import FindingStatus, FindingType, Severity
+
+SourceOfTruth = Literal["dzk", "drrp", "field_override"]
 
 
 class DatasetSummaryDTO(BaseModel):
@@ -54,6 +56,30 @@ class FindingSummaryDTO(BaseModel):
 class FindingDetailDTO(FindingSummaryDTO):
     evidence: list[FindingEvidenceDTO]
     person_name_masked: str
+    assignment_note: str | None = None
+    assigned_at: datetime | None = None
+
+
+class AssignInspectorRequest(BaseModel):
+    note: str | None = Field(default=None, max_length=2000)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class VerifiedAssetDTO(BaseModel):
+    id: UUID
+    finding_id: UUID
+    dataset_id: UUID
+    person_tax_id_masked: str
+    source_of_truth: SourceOfTruth
+    chosen_ref_kind: str | None
+    chosen_ref_id: UUID | None
+    object_type: str | None
+    area_m2: float | None
+    use: str | None
+    address: str | None
+    verified_by: str
+    verified_at: datetime
 
 
 class InspectorVisitCreate(BaseModel):
@@ -65,6 +91,8 @@ class InspectorVisitCreate(BaseModel):
     gps: dict[str, float] | None = None
     photo_refs: list[dict[str, Any]] = Field(default_factory=list)
     resolution: FindingStatus = FindingStatus.RESOLVED
+    source_of_truth: SourceOfTruth | None = None
+    truth_evidence_id: UUID | None = None
 
 
 class InspectorVisitDTO(BaseModel):
@@ -77,6 +105,9 @@ class InspectorVisitDTO(BaseModel):
     notes: str | None
     gps: dict[str, float] | None
     photo_refs: list[dict[str, Any]]
+    source_of_truth: SourceOfTruth | None
+    truth_evidence_id: UUID | None
+    verified_asset: VerifiedAssetDTO | None
     created_at: datetime
 
 

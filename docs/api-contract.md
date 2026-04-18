@@ -173,13 +173,42 @@ Request:
   "actual_area_m2": 210.5,
   "actual_use": "Громадське харчування",
   "notes": "На ділянці діючий ресторан, вивіска 'Калина'.",
-  "gps": { "lat": 50.4756, "lng": 24.2812, "acc_m": 8 }
+  "gps": { "lat": 50.4756, "lng": 24.2812, "acc_m": 8 },
+  "resolution": "resolved",
+  "source_of_truth": "drrp",
+  "truth_evidence_id": "e1..."
 }
 ```
 
-Response `201`: returns the created `FieldVisit` and the updated `Finding` with `status: "resolved"`.
+`source_of_truth` tells the server which registry (or the inspector's own measurements) reflects reality:
 
-Errors: `FORBIDDEN` (inspector not assigned), `VALIDATION_ERROR` (missing photo refs when required by policy).
+- `"dzk"` — the ДЗК land-parcel snapshot is true. `truth_evidence_id` must reference a `finding_evidence` row of kind `land_parcel` that belongs to this finding.
+- `"drrp"` — the ДРРП real-estate snapshot is true. `truth_evidence_id` must reference a `finding_evidence` row of kind `real_estate` that belongs to this finding.
+- `"field_override"` — neither registry matches reality; the `actual_object_type` / `actual_area_m2` / `actual_use` fields hold the truth.
+
+Side effect: on `resolution="resolved"` the server **upserts a row in `verified_asset`** (the canonical main table — see [data-model.md §2.8](data-model.md)). The response includes the upserted record so the mobile client can confirm what landed.
+
+Response `200`: returns the created `FieldVisit` with an inlined `verified_asset` and the updated `Finding` with `status: "resolved"`.
+
+Errors: `FORBIDDEN` (inspector not assigned), `VALIDATION` (`truth_evidence_id` missing when required, evidence does not belong to the finding, or kind does not match the chosen `source_of_truth`).
+
+### 2.5a `GET /inspector/findings/{id}` — inspector-scoped detail
+
+Read model the mobile client opens when the inspector taps a queue card. Same shape as `GET /findings/{id}` (see §2.4) plus `assignment_note` and `assigned_at`. Restricted to findings with `status in {open, in_review}` — resolved findings return `404` so they do not leak back into the mobile queue.
+
+### 2.5b `POST /findings/{id}/assign` — analyst hand-off
+
+Flips a finding from `open -> in_review` and attaches a free-text note for the inspector. The note lives on the finding itself (not in `audit_log`, which only stores payload hashes) so the inspector can read it.
+
+Request:
+
+```json
+{ "note": "Перевірити фактичне використання на місці." }
+```
+
+Response `200`: full `FindingDetailDTO` with populated `assignment_note` and `assigned_at`.
+
+Errors: `CONFLICT` (finding is not in `open` state), `NOT_FOUND`, `FORBIDDEN` (analyst role required).
 
 ### 2.6 `POST /inspector/photos/presign`
 

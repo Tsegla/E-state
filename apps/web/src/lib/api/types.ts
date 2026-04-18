@@ -6,6 +6,7 @@
 
 export type Severity = "critical" | "warning" | "info";
 export type FindingStatus = "open" | "in_review" | "resolved" | "dismissed";
+export type SourceOfTruth = "dzk" | "drrp" | "field_override";
 export type FindingType =
   | "LAND_NO_REAL_ESTATE"
   | "REAL_ESTATE_NO_LAND"
@@ -70,6 +71,28 @@ export interface FindingEvidence {
 export interface FindingDetail extends FindingSummary {
   evidence: FindingEvidence[];
   person_name_masked: string;
+  assignment_note: string | null;
+  assigned_at: string | null;
+}
+
+export interface VerifiedAsset {
+  id: string;
+  finding_id: string;
+  dataset_id: string;
+  person_tax_id_masked: string;
+  source_of_truth: SourceOfTruth;
+  chosen_ref_kind: "land_parcel" | "real_estate" | null;
+  chosen_ref_id: string | null;
+  object_type: string | null;
+  area_m2: number | null;
+  use: string | null;
+  address: string | null;
+  verified_by: string;
+  verified_at: string;
+}
+
+export interface AssignInspectorRequest {
+  note?: string | null;
 }
 
 export interface MatcherRunResponse {
@@ -116,6 +139,8 @@ export interface InspectorVisitCreate {
   gps?: { lat: number; lng: number } | null;
   photo_refs?: Record<string, unknown>[];
   resolution: FindingStatus;
+  source_of_truth?: SourceOfTruth | null;
+  truth_evidence_id?: string | null;
 }
 
 export interface InspectorVisit {
@@ -128,5 +153,8 @@ export interface InspectorVisit {
   notes: string | null;
   gps: { lat: number; lng: number } | null;
   photo_refs: Record<string, unknown>[];
+  source_of_truth: SourceOfTruth | null;
+  truth_evidence_id: string | null;
+  verified_asset: VerifiedAsset | null;
   created_at: string;
 }

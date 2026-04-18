@@ -4,6 +4,7 @@
 
 import { apiFetch } from "./client";
 import type {
+  AssignInspectorRequest,
   BudgetImpact,
   CitizenLookupResponse,
   DatasetSummary,
@@ -59,10 +60,22 @@ export const listFindings = (params: {
 export const getFinding = (findingId: string) =>
   apiFetch<FindingDetail>(`/api/findings/${findingId}`);
 
+export const assignFindingToInspector = (
+  findingId: string,
+  body: AssignInspectorRequest,
+) =>
+  apiFetch<FindingDetail>(`/api/findings/${findingId}/assign`, {
+    method: "POST",
+    body,
+  });
+
 export const inspectorFindings = (datasetId: string) =>
   apiFetch<FindingSummary[]>("/api/inspector/findings", {
     query: { dataset_id: datasetId },
   });
+
+export const getInspectorFinding = (findingId: string) =>
+  apiFetch<FindingDetail>(`/api/inspector/findings/${findingId}`);
 
 export const createInspectorVisit = (body: InspectorVisitCreate) =>
   apiFetch<InspectorVisit>("/api/inspector/visits", { method: "POST", body });

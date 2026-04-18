@@ -1,7 +1,8 @@
-"""Findings list + detail."""
+"""Findings list + detail + analyst actions (assign to inspector)."""
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -10,9 +11,16 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import require_analyst, session_dep
 from app.api.envelope import ApiResponse, Meta, ok
-from app.api.errors import NotFoundError
-from app.api.schemas import FindingDetailDTO, FindingEvidenceDTO, FindingSummaryDTO
+from app.api.errors import ConflictError, NotFoundError
+from app.api.schemas import (
+    AssignInspectorRequest,
+    FindingDetailDTO,
+    FindingEvidenceDTO,
+    FindingSummaryDTO,
+)
 from app.db.models import FindingRow, PersonRow
+from app.domain.enums import FindingStatus
+from app.security.audit import log_action
 from app.security.auth import Principal
 from app.security.pii import mask_name, mask_tax_id
 
@@ -89,11 +97,16 @@ async def get_finding(
     if row is None:
         raise NotFoundError(f"Finding {finding_id} not found")
     person = session.get(PersonRow, row.person_tax_id)
-    detail = FindingDetailDTO(
+    detail = _to_detail(row, person_name=person.full_name_raw if person else "")
+    return ok(detail)
+
+
+def _to_detail(row: FindingRow, *, person_name: str) -> FindingDetailDTO:
+    return FindingDetailDTO(
         id=row.id,
         dataset_id=row.dataset_id,
         person_tax_id_masked=mask_tax_id(row.person_tax_id),
-        person_name_masked=mask_name(person.full_name_raw if person else ""),
+        person_name_masked=mask_name(person_name),
         finding_type=row.finding_type,  # type: ignore[arg-type]
         severity=row.severity,  # type: ignore[arg-type]
         status=row.status,  # type: ignore[arg-type]
@@ -103,5 +116,55 @@ async def get_finding(
             FindingEvidenceDTO(kind=e.kind, ref_id=e.ref_id, snapshot=e.snapshot or {})
             for e in row.evidence
         ],
+        assignment_note=row.assignment_note,
+        assigned_at=row.assigned_at,
     )
-    return ok(detail)
+
+
+@router.post("/{finding_id}/assign", response_model=ApiResponse[FindingDetailDTO])
+async def assign_to_inspector(
+    finding_id: UUID,
+    body: AssignInspectorRequest,
+    principal: Principal = Depends(require_analyst),
+    session: Session = Depends(session_dep),
+) -> ApiResponse[FindingDetailDTO]:
+    """Analyst hands off a finding for field inspection.
+
+    Transitions status ``open -> in_review`` and stores the free-text note on
+    the finding itself (audit_log only persists hashes, so the inspector would
+    not be able to read it from there).
+    """
+    row = (
+        session.execute(
+            select(FindingRow)
+            .options(joinedload(FindingRow.evidence))
+            .where(FindingRow.id == finding_id)
+        )
+        .unique()
+        .scalar_one_or_none()
+    )
+    if row is None:
+        raise NotFoundError(f"Finding {finding_id} not found")
+    if row.status != FindingStatus.OPEN.value:
+        raise ConflictError(
+            f"Finding is already {row.status}; can only assign from 'open'",
+            details={"current_status": row.status},
+        )
+
+    row.status = FindingStatus.IN_REVIEW.value
+    row.assignment_note = body.note
+    row.assigned_at = datetime.now(tz=timezone.utc)
+
+    log_action(
+        session,
+        actor=principal.subject,
+        action="assign_inspector",
+        target_table="finding",
+        target_id=str(finding_id),
+        payload={"has_note": bool(body.note)},
+    )
+    session.commit()
+    session.refresh(row)
+
+    person = session.get(PersonRow, row.person_tax_id)
+    return ok(_to_detail(row, person_name=person.full_name_raw if person else ""))
