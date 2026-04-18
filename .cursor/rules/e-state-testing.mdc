@@ -1,0 +1,49 @@
+---
+description: "E-State testing requirements — golden sets, contract tests, per-role E2E"
+globs: ["services/api/tests/**/*.py", "apps/web/tests/**/*.{ts,tsx}", "apps/web/src/**/*.test.{ts,tsx}", "services/api/app/**/*.py", "apps/web/src/**/*.{ts,tsx}"]
+alwaysApply: false
+---
+# E-State — Testing Rules
+
+Extends [.cursor/rules/common-testing.mdc](mdc:.cursor/rules/common-testing.mdc) and [.cursor/skills/tdd-workflow/SKILL.md](mdc:.cursor/skills/tdd-workflow/SKILL.md). 80 %+ coverage required.
+
+## Required test tiers
+
+1. **Unit** — normalizers in `ingest/`, pure functions in `matcher/detectors/`, React components in isolation.
+2. **Contract** — one `tests/api/test_<router>.py` per FastAPI router, exercising the DTOs declared in [docs/api-contract.md](mdc:docs/api-contract.md).
+3. **E2E** — Playwright covering one happy path per role from [docs/user-flows.md](mdc:docs/user-flows.md):
+   - `e2e/back-office/upload-and-resolve.spec.ts`
+   - `e2e/inspector/visit-flow.spec.ts`
+   - `e2e/citizen/lookup.spec.ts`
+
+## Matcher-specific (extends `e-state-data-matcher`)
+
+- Every detector has a dedicated test file `tests/matcher/test_<detector>.py` with the three scenarios (`fires_on_positive_sample`, `ignores_negative_sample`, `is_idempotent`).
+- Fixtures live under `services/api/tests/fixtures/` and must stay ≤ 30 rows each.
+- `tests/test_pipeline_real_data.py` runs against the full real dataset and asserts the baselines in `tests/baselines.json`.
+- When dataset baselines drift intentionally, update `baselines.json` and [docs/sample-findings.md](mdc:docs/sample-findings.md) together.
+
+## PII tests (extends `e-state-pii`)
+
+Required checks in `tests/security/test_pii.py`:
+
+- No endpoint accepts `tax_id` via query string (asserted by crawling the OpenAPI doc).
+- `mask_tax_id("2247237363") == "***7363"`.
+- Logs produced during a citizen lookup contain no unmasked tax IDs (caplog assertion).
+
+## Web tests
+
+- Unit: Vitest + React Testing Library. Snapshot tests are discouraged; prefer role-based queries.
+- E2E: Playwright with Page Object Model under `apps/web/tests/pages/`.
+- Accessibility: `@axe-core/playwright` runs on every E2E path; zero serious violations allowed.
+
+## Determinism
+
+- Tests must not rely on wall-clock time; inject a `Clock` port.
+- Random seeds are fixed where randomness applies (none in the matcher; only in generated fixture factories).
+
+## CI guardrails
+
+- `pytest --cov --cov-fail-under=80`.
+- `pnpm test -- --coverage` with line coverage ≥ 80 %.
+- E2E runs on every PR against an ephemeral environment that seeds the demo dataset automatically (see `docs/setup.md`).

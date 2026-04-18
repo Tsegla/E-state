@@ -1,0 +1,56 @@
+---
+description: "E-State API contracts — OpenAPI is source of truth, response envelope"
+globs: ["services/api/app/api/**/*.py", "services/api/app/main.py", "apps/web/src/lib/api/**/*.{ts,tsx}"]
+alwaysApply: false
+---
+# E-State — API Contract Rules
+
+Authoritative contract: [docs/api-contract.md](mdc:docs/api-contract.md).
+
+## OpenAPI is the source of truth
+
+- FastAPI generates `GET /openapi.json` at startup. Pydantic v2 models are the schema definitions.
+- Web types live in `apps/web/src/lib/api/types.ts`, **regenerated** by `pnpm run generate:api` which runs `openapi-typescript` against the live OpenAPI doc.
+- When a Pydantic model changes, the web `types.ts` must be regenerated **in the same commit**.
+- Do not hand-write duplicate TS interfaces that mirror Pydantic DTOs; import from `types.ts`.
+
+## Response envelope
+
+Every non-error response:
+
+```ts
+interface ApiResponse<T> {
+  success: true
+  data: T
+  meta?: { total: number; page: number; limit: number }
+}
+```
+
+Every error response:
+
+```ts
+interface ApiError {
+  success: false
+  error: { code: string; message: string; field?: string }
+}
+```
+
+`error.code` is one of the enum values declared in [docs/api-contract.md §4](mdc:docs/api-contract.md#4-error-model-complete). Introducing a new code requires updating the doc and the web error-handling switch.
+
+## FastAPI conventions
+
+- Routers live in `services/api/app/api/routers/<domain>.py`.
+- Request DTOs end in `Request`; response DTOs end in `Response`. All DTOs inherit a shared `BaseModel` with `model_config = ConfigDict(populate_by_name=True, extra="forbid")`.
+- Use `Depends(get_current_staff)` / `get_current_inspector` for auth; never parse JWTs inline.
+- Every endpoint returns the envelope via a shared helper `ok(data)` / `err(code, message)`; don't construct raw dicts.
+- Errors are raised as `AppError(code=...)` and translated by a global exception handler into the `ApiError` envelope.
+
+## Web API client
+
+- The typed client is a single `src/lib/api/client.ts` wrapping `fetch` with auth, `X-Request-ID` propagation, and envelope unwrapping.
+- React components consume the client via hooks in `src/lib/api/hooks.ts` (React Query).
+- **No raw `fetch` calls in components or route handlers.**
+
+## Versioning
+
+- Breaking changes require a new path (`/v2/...`) and a deprecation note in [docs/api-contract.md](mdc:docs/api-contract.md). The MVP lives at the unversioned root; `v2` is introduced only when a client still in the field depends on the old shape.

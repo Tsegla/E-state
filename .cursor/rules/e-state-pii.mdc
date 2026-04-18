@@ -1,0 +1,42 @@
+---
+description: "E-State PII handling — РНОКПП masking, audit log, no PII in logs"
+globs: ["services/api/app/citizen/**/*.py", "services/api/app/inspector/**/*.py", "services/api/app/security/**/*.py", "services/api/app/api/routers/**/*.py", "apps/web/src/app/(citizen)/**/*.{ts,tsx}", "apps/web/src/lib/logger.ts"]
+alwaysApply: false
+---
+# E-State — PII Rules
+
+Grounded in [docs/legal-compliance.md §3](mdc:docs/legal-compliance.md#3-захист-персональних-даних) and the Закон України "Про захист персональних даних".
+
+## РНОКПП handling (non-negotiable)
+
+- **Never in URLs or query strings.** All endpoints that accept a tax ID take it in the **request body** only.
+  - `POST /citizen/lookup` with `{"tax_id": "...", "captcha_token": "..."}` ✅
+  - `GET /citizen/lookup?tax_id=…` ❌
+- **Never in client-side logs.** No `console.log`, `console.error`, `Sentry.captureMessage` containing a raw РНОКПП/ЄДРПОУ.
+- **Masked in server logs.** Every log line that mentions a tax ID renders it as `***NNNN` (last 4 digits). Use `security.mask_tax_id(v)` — defined in `services/api/app/security/pii.py` — do not write the regex inline.
+- **List endpoints return only `tax_id_masked`.** Full `tax_id` is only in detail endpoints for authenticated staff, and every access must first write to `audit_log`.
+- **Storage:** `person.tax_id` is a string PK (never an integer). Leading zeros must be preserved.
+
+## Audit log
+
+Every one of these actions must write exactly one `audit_log` row:
+
+- `POST /citizen/lookup` → `action=read_citizen`
+- `GET /findings/:id` with staff role → `action=read_finding`
+- `POST /inspector/visits` → `action=create` on `field_visit`
+- `POST /matcher/run` → `action=run_matcher`
+
+`audit_log.payload_hash` is a SHA-256 of the JSON payload; **never store the payload itself**. Use `security.audit.record(...)` to add rows — direct inserts are not allowed.
+
+## Citizen endpoint safety
+
+- Rate limit 5 requests per 15 minutes per IP. Enforced in middleware.
+- CAPTCHA token required and verified server-side before any DB read.
+- Response never cites neighbours' records, even when the lookup happens inside a shared koatuu.
+
+## Forbidden patterns
+
+- Raw `print(tax_id)` / `logger.info(tax_id)` / `logger.exception(f"... {tax_id}")`.
+- Tax IDs in error responses (`ApiError.message` must be generic; correlate via `X-Request-ID`).
+- Tax IDs in analytics events, Sentry breadcrumbs, or performance traces.
+- Storing the full lookup payload in `audit_log`.

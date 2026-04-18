@@ -1,0 +1,49 @@
+---
+description: "E-State repository layout and separation-of-concerns rules"
+globs: ["**/*"]
+alwaysApply: true
+---
+# E-State — Architecture Rules
+
+Enforces the repo layout and module boundaries defined in [docs/architecture.md](mdc:docs/architecture.md).
+
+## Repo layout (must match exactly)
+
+```
+apps/web/                     Next.js 15 App Router (UI only)
+services/api/app/
+  ingest/                     Excel/CSV readers + normalizers
+  matcher/                    Pandas engine
+    detectors/                One module per finding_type
+    config.py                 Thresholds, enums
+  domain/                     Pure typed records (Person, LandParcel, ...)
+  db/                         SQLAlchemy models + Alembic migrations
+  api/                        FastAPI routers + DTOs
+  security/                   Auth, РНОКПП masking, audit log
+services/api/tests/
+  fixtures/                   Golden-set CSVs (small)
+data/samples/                 Raw xlsx snapshots (gitignored)
+docs/                         Authoritative docs
+```
+
+## Module dependency rules
+
+- `ingest/` depends on `domain/` only.
+- `matcher/` depends on `domain/` and `matcher/config.py` only — **never** on `db/`, `api/`, or HTTP.
+- `db/` mirrors `domain/`; `domain/` never imports `db/`.
+- `api/` routers are thin: request → validate → call a service in `matcher/` or `db/` → return DTO. No business logic in routers.
+- `apps/web/**` **never** imports from `services/`. Web talks to the API via HTTP using the generated OpenAPI client in `src/lib/api/`.
+- React components never call `fetch` directly. They use hooks from `src/lib/api/` which wrap the generated client.
+
+## Prohibited patterns
+
+- Business logic inside React components or Next.js route handlers (beyond simple passthrough).
+- Direct DB calls from FastAPI routers (use a service module).
+- Mutating DataFrames received from another module without `.copy()` first.
+- New top-level folders without updating `docs/architecture.md` in the same commit.
+
+## File-size heuristics (from common-coding-style)
+
+- Python modules: ≤ 400 lines; one detector per file.
+- React components: ≤ 200 lines; split once they exceed that.
+- API routers: one file per domain (`findings.py`, `inspector.py`, `citizen.py`, `reports.py`).

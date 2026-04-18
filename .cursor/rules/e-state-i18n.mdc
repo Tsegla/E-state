@@ -1,0 +1,46 @@
+---
+description: "E-State internationalization — all UI strings route through i18n"
+globs: ["apps/web/**/*.{ts,tsx,js,jsx}"]
+alwaysApply: false
+---
+# E-State — I18n Rules
+
+The product is Ukrainian-first. Strings live in a single module for auditability.
+
+## Locale source of truth
+
+- All user-facing strings are declared in `apps/web/src/i18n/uk.ts` as a typed, nested object.
+- React components access them via a typed helper: `import { t } from "@/i18n"`. Usage: `t("findings.table.header.status")`.
+- Date, number, and currency formatting uses `Intl.*` with locale `"uk-UA"`.
+
+## Do not
+
+- Do not write Ukrainian literals in JSX, prop defaults, `toast(...)` calls, or `throw new Error(...)` messages.
+- Do not import English copy from a library and show it to users (e.g. don't use Shadcn's default "Close" — provide a translated label).
+- Do not concatenate translated fragments. Use parameterised keys: `t("findings.detail.ratio", { ratio: 7.74 })`.
+
+## Code conventions
+
+- Code identifiers, file names, comments stay English.
+- Ukrainian terms from the glossary in [.cursor/rules/e-state-overview.mdc](mdc:.cursor/rules/e-state-overview.mdc) (ОТГ, ДЗК, ДРРП, РНОКПП, кадастровий номер) may appear inline inside English prose as-is.
+- Unit rendering: insert thin non-breaking space between number and unit (`1 250 м²`, not `1250м²`).
+- Quotation marks: `«…»` in Ukrainian copy.
+
+## Citizen-facing tone
+
+Per [docs/legal-compliance.md §4](mdc:docs/legal-compliance.md#4-захист-інтересів-третіх-осіб), the citizen portal uses neutral, non-accusatory language:
+
+- `Потребує уточнення`, not `Порушення`.
+- `Триває перевірка`, not `Підозрювана особа`.
+- Never cite neighbours' records in citizen views.
+
+## File layout
+
+```
+apps/web/src/i18n/
+  uk.ts             default locale (authoritative)
+  index.ts          `t`, `tFormat`, type exports
+  types.ts          `type Dictionary = typeof uk`
+```
+
+Later locales (e.g. English for investor demos) extend `Dictionary` with the same shape.

@@ -3,6 +3,22 @@
 # Назва проєкту: **E-State**
 *Гасло: Прозорість у кожному квадратному метрі.*
 
+> **Implementation docs index (authoritative source of truth for the build):**
+> - [architecture.md](architecture.md) — modules, repo layout, deployment topology
+> - [data-dictionary.md](data-dictionary.md) — cross-walk from raw ДЗК/ДРРП columns to canonical fields
+> - [data-model.md](data-model.md) — canonical DB schema (person-centric)
+> - [data-matcher-spec.md](data-matcher-spec.md) — matching algorithm, 8 detectors, thresholds
+> - [api-contract.md](api-contract.md) — REST contract between web and API
+> - [user-flows.md](user-flows.md) — per-role screens and state transitions
+> - [design-system.md](design-system.md) — Tailwind/Shadcn tokens from the design brief
+> - [legal-compliance.md](legal-compliance.md) — правова база, РНОКПП handling, audit obligations
+> - [roadmap.md](roadmap.md) — MVP → v1 → v2, бізнес-модель, ризики
+> - [demo-script.md](demo-script.md) — 9-minute presentation walk-through
+> - [sample-findings.md](sample-findings.md) — worked examples on the real dataset
+> - [setup.md](setup.md) — how to run locally
+>
+> **Key correction from original PRD:** the supplied ДРРП dataset contains no cadastral numbers, so the cross-registry join uses **taxpayer ID** (`ЄДРПОУ землекористувача` ↔ `Податковий номер ПП`) with owner-name fuzzy as fallback. See [data-matcher-spec.md](data-matcher-spec.md) for the full algorithm.
+
 ---
 
 ## 1. Концепція продукту

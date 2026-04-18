@@ -1,0 +1,57 @@
+---
+description: "E-State project overview, glossary, and always-on context"
+globs: ["**/*"]
+alwaysApply: true
+---
+# E-State — Project Overview
+
+**E-State** is a SaaS platform that automates the audit of communal assets (нерухомість + земля) for Ukrainian ОТГ by cross-checking the ДЗК (land) and ДРРП (real estate) registries.
+
+## Source-of-truth docs
+
+Before editing code, consult the relevant doc in `docs/`:
+
+- [docs/architecture.md](mdc:docs/architecture.md) — modules, repo layout, deployment
+- [docs/data-dictionary.md](mdc:docs/data-dictionary.md) — raw → canonical field mapping
+- [docs/data-model.md](mdc:docs/data-model.md) — DB schema
+- [docs/data-matcher-spec.md](mdc:docs/data-matcher-spec.md) — matching algorithm, 8 detectors
+- [docs/api-contract.md](mdc:docs/api-contract.md) — HTTP contract
+- [docs/user-flows.md](mdc:docs/user-flows.md) — per-role UX
+- [docs/design-system.md](mdc:docs/design-system.md) — tokens + Shadcn recipes
+- [docs/legal-compliance.md](mdc:docs/legal-compliance.md) — PII, audit, повноваження
+- [docs/sample-findings.md](mdc:docs/sample-findings.md) — worked examples on real data
+
+## Glossary (use these exact terms in comments and docstrings)
+
+| Term | Meaning |
+|---|---|
+| ОТГ | Об'єднана територіальна громада (merged municipal community) |
+| ДЗК | Державний земельний кадастр (land cadaster) |
+| ДРРП | Державний реєстр речових прав на нерухоме майно (real-estate registry) |
+| РНОКПП | Реєстраційний номер облікової картки платника податків (taxpayer ID, personal) |
+| ЄДРПОУ | Єдиний державний реєстр підприємств та організацій України (tax ID, legal entity) |
+| Кадастровий номер | Cadastral number, format `NNNNNNNNNN:NN:NNN:NNNN` |
+| Цільове призначення | Intended use code + label, e.g. `02.01 Для будівництва…` |
+| КОАТУУ | Classifier of administrative-territorial units of Ukraine |
+| Землевпорядник | Back-office staff role |
+| Інспектор | Field inspector role |
+| Фактичний стан | Actual state (recorded by inspector) vs paper registries |
+
+## Language policy
+
+- **User-facing strings** — Ukrainian. All copy flows through `apps/web/src/i18n/uk.ts`. No inline Ukrainian literals in JSX.
+- **Code identifiers, file names, comments, doc headings inside this repo** — English.
+- **Commit messages, PR titles** — English, conventional commits.
+- **Exception:** the glossary terms above may appear verbatim in Ukrainian inside English prose (e.g. `"ДЗК parser"` is fine).
+
+## Critical invariant (from data-matcher-spec)
+
+The join key between ДЗК and ДРРП on our real dataset is the **taxpayer ID**
+(`ЄДРПОУ землекористувача` ↔ `Податковий номер ПП`). The original PRD assumed a cadastral-number join; that is **not possible** on this dataset because ДРРП lacks a cadastral column. Do not write code or docs that assume otherwise.
+
+## Do / Don't
+
+- Do read the canonical doc in `docs/` before touching a module; update the doc in the same commit when behavior changes.
+- Do prefer editing existing files over creating new ones.
+- Don't hardcode thresholds, rates, or enum values — they belong in `services/api/app/matcher/config.py` or `apps/web/src/config/`.
+- Don't duplicate business logic in the web layer; the web layer is a thin UI.

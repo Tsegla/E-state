@@ -1,0 +1,64 @@
+---
+description: "Invariants for the E-State matcher (ДЗК/ДРРП reconciliation engine)"
+globs: ["services/api/app/matcher/**/*.py", "services/api/app/ingest/**/*.py", "data/fixtures/**", "services/api/tests/matcher/**/*.py", "services/api/tests/fixtures/**"]
+alwaysApply: false
+---
+# E-State — Matcher Rules
+
+Authoritative spec: [docs/data-matcher-spec.md](mdc:docs/data-matcher-spec.md). These rules are enforceable by code review.
+
+## Join-key invariant (CRITICAL)
+
+The cross-registry join key is the **taxpayer ID**:
+
+```
+land_parcel.owner_tax_id == real_estate.owner_tax_id
+```
+
+with owner-name fuzzy (`rapidfuzz.fuzz.token_set_ratio ≥ cfg.name_fuzz_min * 100`) as the fallback **only** when either side has a missing or malformed tax ID. No detector may assume a cadastral number exists on the ДРРП side — it does not.
+
+## Purity
+
+Every detector signature is:
+
+```python
+def detect(ctx: MatcherContext) -> list[Finding]: ...
+```
+
+- `ctx` is a frozen dataclass with DataFrames.
+- Detectors must not call the DB, the network, or the filesystem.
+- Detectors must not mutate `ctx.zem` or `ctx.ner`. Use `.copy()` at the boundary if a working frame is needed.
+- Detectors are pure: same input → identical list of findings.
+
+## Structure
+
+- One detector per file under `services/api/app/matcher/detectors/`.
+- Detector module name matches the `finding_type` lower-cased: `land_no_real_estate.py`, `area_portfolio_delta.py`, etc.
+- Export a `FINDING_TYPE: Final[str]`, a `SEVERITY: Final[Severity]`, and the `detect` function.
+
+## Findings must include
+
+Every `Finding` returned must carry:
+
+- `finding_type` (from the `FindingType` enum in [docs/data-model.md](mdc:docs/data-model.md)).
+- `severity`.
+- `computed_metrics` — a dict with the keys documented in [docs/data-matcher-spec.md §6](mdc:docs/data-matcher-spec.md).
+- `evidence_refs` — ids of the rows that triggered the finding.
+
+Findings missing `computed_metrics` or `evidence_refs` are rejected at runtime (the engine raises).
+
+## Thresholds and rates
+
+- All numeric thresholds live in `services/api/app/matcher/config.py` on `MatcherConfig`.
+- Budget-impact rates live in the same file and must include a source comment.
+- Magic numbers in detector code are not allowed.
+
+## Testing
+
+Every detector requires at least three tests in `services/api/tests/matcher/test_<detector>.py`:
+
+1. `test_<detector>_fires_on_positive_sample` — uses a fixture CSV under `tests/fixtures/`.
+2. `test_<detector>_ignores_negative_sample` — asserts no false positives on a clean fixture.
+3. `test_<detector>_is_idempotent` — running twice yields identical findings.
+
+The full-pipeline smoke test `tests/test_pipeline_real_data.py` asserts the dataset baselines from `tests/baselines.json`. When those baselines change, update both `baselines.json` and [docs/sample-findings.md](mdc:docs/sample-findings.md) in the same commit.

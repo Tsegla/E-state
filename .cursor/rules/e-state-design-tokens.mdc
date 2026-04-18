@@ -1,0 +1,56 @@
+---
+description: "E-State design tokens — enforces the palette and Shadcn primitives"
+globs: ["apps/web/**/*.{ts,tsx,js,jsx,css}", "apps/web/tailwind.config.*"]
+alwaysApply: false
+---
+# E-State — Design Tokens Rules
+
+Backed by [docs/design-system.md](mdc:docs/design-system.md) and [docs/design-brief.md](mdc:docs/design-brief.md).
+
+## Colour palette (only source of truth: Tailwind config)
+
+Canonical tokens in `apps/web/tailwind.config.ts`:
+
+- `forest` (`#3F5E3B`) — primary actions
+- `olive` (`#B6B774`) — secondary accents
+- `sand` (`#E3C9A9`) — background blocks
+- `rose` (`#C97A7F`) — alerts / critical
+- `surface`, `ink`, semantic `success | warning | info | danger`
+
+**No raw hex in JSX, CSS, or inline styles.** Use Tailwind classes against the declared tokens. New colours must be added to the Tailwind config and to [docs/design-system.md](mdc:docs/design-system.md) in the same commit.
+
+## Components
+
+- Use Shadcn primitives only (`Button`, `Badge`, `Table`, `Dialog`, `DropdownMenu`, `Select`, `Input`, `Label`, `Textarea`, `Tabs`, `Sheet`, `Toast`, `Skeleton`). Install via `pnpm dlx shadcn@latest add …`.
+- Icons from `lucide-react` only. Stroke width 1.75. Sizes: 20 px in tables, 24 px in hero sections.
+- Prohibited libraries: `antd`, `@mui/*`, `react-select`, `chakra-ui`, `semantic-ui`.
+
+## Radius and shadows
+
+- Radius: `rounded-lg` (8 px) dense UI, `rounded-xl` (12 px) hero cards and dialogs. No raw `border-radius`.
+- One depth token only: `shadow-soft`. Nothing harder.
+
+## Status badges
+
+Every status must render with **label + icon + tone** — never colour alone. Mapping table lives in [docs/design-system.md §6](mdc:docs/design-system.md#6-status-badges). Missing or ad-hoc mappings are not allowed.
+
+## Typography
+
+- Inter variable via `next/font`. Mono for tax IDs and cadastral numbers.
+- Tabular numerals (`font-variant-numeric: tabular-nums`) on tables and metric cards.
+
+## Accessibility
+
+- Every interactive element is keyboard-reachable with a visible focus ring (`focus-visible:ring-2 ring-forest/60`).
+- Body text never smaller than 16 px; `text-sm` only for labels / captions.
+- Respect `prefers-reduced-motion`.
+- Status never communicated by colour alone.
+
+## Anti-template policy
+
+Follows [.cursor/rules/web-design-quality.mdc](mdc:.cursor/rules/web-design-quality.mdc). Additionally banned for E-State:
+
+- Default Shadcn theme without palette swap.
+- Generic centred-gradient hero on any non-marketing page.
+- Rainbow severity badges.
+- Uniform 16 px padding rhythm.
