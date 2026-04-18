@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Database, Files, Upload, Users } from "lucide-react";
+import { AlertTriangle, Database, Files, Info, Layers, Upload } from "lucide-react";
 import Link from "next/link";
 
 import { BackOfficeShell } from "@/components/back-office-shell";
@@ -92,23 +92,26 @@ export default function DashboardPage() {
                 label={uk.dashboard.metrics.landParcels}
                 value={formatInt(latest.zem_rows)}
                 icon={<Database className="h-5 w-5" />}
+                hint={uk.dashboard.metrics.landParcelsHint}
               />
               <MetricCard
                 label={uk.dashboard.metrics.realEstate}
                 value={formatInt(latest.ner_rows)}
                 icon={<Files className="h-5 w-5" />}
+                hint={uk.dashboard.metrics.realEstateHint}
               />
               <MetricCard
-                label={uk.dashboard.metrics.persons}
+                label={uk.dashboard.metrics.totalRecords}
                 value={formatInt(latest.zem_rows + latest.ner_rows)}
-                icon={<Users className="h-5 w-5" />}
-                hint={`Набір: ${latest.label}`}
+                icon={<Layers className="h-5 w-5" />}
+                hint={uk.dashboard.metrics.totalRecordsHint}
               />
               <MetricCard
                 label={uk.dashboard.metrics.findings}
                 value={formatInt(findingsTotal)}
                 tone="critical"
                 icon={<AlertTriangle className="h-5 w-5" />}
+                hint={uk.dashboard.metrics.findingsHint}
               />
             </section>
 
@@ -117,17 +120,36 @@ export default function DashboardPage() {
                 label={uk.dashboard.metrics.critical}
                 value={formatInt(countsQuery.data?.critical)}
                 tone="critical"
+                hint={uk.dashboard.metrics.criticalHint}
               />
               <MetricCard
                 label={uk.dashboard.metrics.warning}
                 value={formatInt(countsQuery.data?.warning)}
                 tone="warning"
+                hint={uk.dashboard.metrics.warningHint}
               />
               <MetricCard
                 label={uk.dashboard.metrics.info}
                 value={formatInt(countsQuery.data?.info)}
+                hint={uk.dashboard.metrics.infoHint}
               />
             </section>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-h2">
+                  <Info className="h-5 w-5 text-forest-700" />
+                  {uk.dashboard.legend.title}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="flex flex-col gap-2 text-small text-ink/80">
+                  <li>{uk.dashboard.legend.dzk}</li>
+                  <li>{uk.dashboard.legend.drrp}</li>
+                  <li>{uk.dashboard.legend.findings}</li>
+                </ul>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader>

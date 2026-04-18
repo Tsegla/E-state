@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from collections import defaultdict, deque
 from datetime import datetime, timezone
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
@@ -14,7 +15,7 @@ from app.api.envelope import ApiResponse, ok
 from app.api.errors import RateLimitError, ValidationError
 from app.api.schemas import CitizenAssetDTO, CitizenLookupRequest, CitizenLookupResponse
 from app.config import get_settings
-from app.db.models import FindingRow, LandParcelRow, PersonRow, RealEstateRow
+from app.db.models import DatasetRow, FindingRow, LandParcelRow, PersonRow, RealEstateRow
 from app.ingest.normalize import normalize_tax_id
 from app.security.audit import log_action
 from app.security.pii import mask_name
@@ -43,6 +44,17 @@ def _mask_location(location: str | None) -> str | None:
     return ", ".join(parts[:2]) if parts else None
 
 
+def _latest_snapshot_dataset_id(session: Session) -> UUID | None:
+    """Use the newest matched dataset as the citizen-facing snapshot."""
+    return (
+        session.query(DatasetRow.id)
+        .filter(DatasetRow.status == "matched")
+        .order_by(DatasetRow.uploaded_at.desc())
+        .limit(1)
+        .scalar()
+    )
+
+
 @router.post("/lookup", response_model=ApiResponse[CitizenLookupResponse])
 async def lookup(
     body: CitizenLookupRequest,
@@ -63,20 +75,38 @@ async def lookup(
     # flow calls Turnstile's ``/siteverify`` with ``settings.citizen_captcha_secret``.
 
     person = session.get(PersonRow, tax_id)
-    parcels = session.query(LandParcelRow).filter(LandParcelRow.owner_tax_id == tax_id).all()
-    estates = (
-        session.query(RealEstateRow)
-        .filter(RealEstateRow.owner_tax_id == tax_id, RealEstateRow.terminated_at.is_(None))
-        .all()
-    )
-    findings_open = (
-        session.query(FindingRow)
-        .filter(
-            FindingRow.person_tax_id == tax_id,
-            FindingRow.status.in_(["open", "in_review"]),
+    dataset_id = _latest_snapshot_dataset_id(session)
+    if dataset_id is None:
+        parcels = []
+        estates = []
+        findings_open = 0
+    else:
+        parcels = (
+            session.query(LandParcelRow)
+            .filter(
+                LandParcelRow.owner_tax_id == tax_id,
+                LandParcelRow.dataset_id == dataset_id,
+            )
+            .all()
         )
-        .count()
-    )
+        estates = (
+            session.query(RealEstateRow)
+            .filter(
+                RealEstateRow.owner_tax_id == tax_id,
+                RealEstateRow.dataset_id == dataset_id,
+                RealEstateRow.terminated_at.is_(None),
+            )
+            .all()
+        )
+        findings_open = (
+            session.query(FindingRow)
+            .filter(
+                FindingRow.person_tax_id == tax_id,
+                FindingRow.dataset_id == dataset_id,
+                FindingRow.status.in_(["open", "in_review"]),
+            )
+            .count()
+        )
 
     assets: list[CitizenAssetDTO] = []
     for parcel in parcels:
@@ -84,7 +114,7 @@ async def lookup(
             CitizenAssetDTO(
                 kind="land_parcel",
                 label=parcel.intended_use_label or parcel.intended_use_code or "Земельна ділянка",
-                area_m2=float(parcel.area_m2 or 0.0),
+                area_m2=parcel.area_m2,
                 location_masked=_mask_location(parcel.location_admin),
             )
         )
@@ -93,7 +123,7 @@ async def lookup(
             CitizenAssetDTO(
                 kind="real_estate",
                 label=estate.object_type_raw or "Об'єкт нерухомості",
-                area_m2=float(estate.area_m2 or 0.0),
+                area_m2=estate.area_m2,
                 location_masked=_mask_location(estate.address_raw),
             )
         )

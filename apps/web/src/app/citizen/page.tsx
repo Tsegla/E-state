@@ -55,6 +55,7 @@ export default function CitizenPortalPage() {
                   placeholder="1234567890"
                   required
                 />
+                <p className="text-meta text-ink-muted">{uk.citizen.taxIdHint}</p>
               </div>
               <label className="flex items-start gap-2 text-small">
                 <input

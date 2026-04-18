@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Coins } from "lucide-react";
+import { Coins, Info } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
@@ -54,11 +54,13 @@ function ReportsPageInner() {
               value={formatCurrency(impactQuery.data.total_uah_per_year)}
               tone="success"
               icon={<Coins className="h-5 w-5" />}
+              hint={uk.reports.totalPerYearHint}
             />
 
             <Card>
               <CardHeader>
                 <CardTitle>{uk.reports.byType}</CardTitle>
+                <CardDescription>{uk.reports.byTypeHint}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3 md:grid-cols-2">
@@ -74,6 +76,18 @@ function ReportsPageInner() {
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-h2">
+                  <Info className="h-5 w-5 text-forest-700" />
+                  {uk.reports.methodologyTitle}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-small text-ink/80">{uk.reports.methodology}</p>
               </CardContent>
             </Card>
           </>

@@ -92,7 +92,8 @@ function FindingsPageInner() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-1">
             <h1 className="text-display text-ink">{uk.findings.title}</h1>
-            <p className="text-small">
+            <p className="text-small">{uk.findings.subtitle}</p>
+            <p className="text-meta text-ink-muted">
               {dataset ? `${dataset.label} · ${formatDateTime(dataset.uploaded_at)}` : uk.common.loading}
             </p>
           </div>
@@ -100,7 +101,8 @@ function FindingsPageInner() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-h2">{uk.findings.filters.severity}</CardTitle>
+            <CardTitle className="text-h2">{uk.findings.filtersTitle}</CardTitle>
+            <p className="text-small text-ink/70">{uk.findings.filtersHint}</p>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-small">
               {SEVERITY_OPTIONS.map((s) => (
                 <Button

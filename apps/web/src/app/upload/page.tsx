@@ -75,6 +75,7 @@ export default function UploadPage() {
                     onChange={(e) => setLabel(e.target.value)}
                     required
                   />
+                  <p className="text-meta text-ink-muted">{uk.upload.labelHint}</p>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="zem">{uk.upload.zemLabel}</Label>
@@ -85,6 +86,7 @@ export default function UploadPage() {
                     onChange={(e) => setZemFile(e.target.files?.[0] ?? null)}
                     required
                   />
+                  <p className="text-meta text-ink-muted">{uk.upload.zemHint}</p>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="ner">{uk.upload.nerLabel}</Label>
@@ -95,6 +97,7 @@ export default function UploadPage() {
                     onChange={(e) => setNerFile(e.target.files?.[0] ?? null)}
                     required
                   />
+                  <p className="text-meta text-ink-muted">{uk.upload.nerHint}</p>
                 </div>
                 {uploadMut.error ? (
                   <p className="text-sm text-rose-700">
