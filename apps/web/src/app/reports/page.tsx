@@ -11,7 +11,7 @@ import { SubscriptionQuoteCard } from "@/components/subscription-quote-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { uk } from "@/i18n/uk";
-import { formatCurrency, formatDateTimeUtc } from "@/i18n/format";
+import { formatCurrency, formatReportDateTime } from "@/i18n/format";
 import {
   budgetImpact,
   downloadExecutivePdf,
@@ -69,7 +69,7 @@ function ReportsPageInner() {
           <p className="text-small">{uk.reports.subtitle}</p>
           {reportGeneratedAt && (
             <p className="text-meta text-ink-muted">
-              {uk.reports.generatedAt}: {formatDateTimeUtc(reportGeneratedAt)}
+              {uk.reports.generatedAt}: {formatReportDateTime(reportGeneratedAt)}
             </p>
           )}
         </div>

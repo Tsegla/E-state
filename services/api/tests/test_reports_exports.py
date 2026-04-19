@@ -21,6 +21,7 @@ from app.api.errors import (
 )
 from app.api.routers import ALL_ROUTERS
 from app.db.models import Base, DatasetRow, FindingRow, LandParcelRow, PersonRow, VerifiedAssetRow
+from app.reports.service import _format_report_timestamp
 from app.security.auth import Principal
 
 ANALYST = Principal(subject="analyst@example.com", role="analyst")
@@ -97,6 +98,8 @@ def _seed_data(session_factory):
             severity="warning",
             status="open",
             computed_metrics={"total_residential_m2": 250.0},
+            detected_at=datetime(2026, 4, 18, 12, 30, tzinfo=timezone.utc),
+            assigned_at=datetime(2026, 4, 18, 15, 5, tzinfo=timezone.utc),
         )
         s.add(finding)
         s.flush()
@@ -134,6 +137,29 @@ def test_findings_csv_export_masked_by_default(client) -> None:
     assert "Тип розбіжності" in body
     assert "12••••••90" in body
     assert "1234567890" not in body
+    assert "18.04.2026 15:30 за Києвом" in body
+    assert "18.04.2026 18:05 за Києвом" in body
+
+
+def test_report_timestamp_formatter_uses_kyiv_time() -> None:
+    assert (
+        _format_report_timestamp(datetime(2026, 4, 18, 12, 30, tzinfo=timezone.utc))
+        == "18.04.2026 15:30 за Києвом"
+    )
+
+
+def test_report_timestamp_formatter_treats_naive_datetimes_as_utc() -> None:
+    assert (
+        _format_report_timestamp(datetime(2026, 4, 18, 12, 30))
+        == "18.04.2026 15:30 за Києвом"
+    )
+
+
+def test_report_timestamp_formatter_handles_winter_kyiv_offset() -> None:
+    assert (
+        _format_report_timestamp(datetime(2026, 1, 10, 22, 0, tzinfo=timezone.utc))
+        == "11.01.2026 00:00 за Києвом"
+    )
 
 
 def test_findings_csv_export_full_requires_admin(client) -> None:

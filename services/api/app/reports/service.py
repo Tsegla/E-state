@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import csv
 import io
-import json
-from pathlib import Path
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from openpyxl import Workbook
 from reportlab.lib.pagesizes import A4
@@ -34,7 +34,9 @@ from app.security.pii import mask_name, mask_tax_id
 
 EXPORT_ROW_LIMIT = 50_000
 PDF_FONT_NAME = "EStateUnicode"
-REPORT_TIME_FORMAT = "%d.%m.%Y %H:%M UTC"
+REPORT_TIME_FORMAT = "%d.%m.%Y %H:%M"
+REPORT_TIMEZONE = ZoneInfo("Europe/Kyiv")
+REPORT_TIMEZONE_LABEL = "за Києвом"
 PDF_FONT_CANDIDATES = (
     "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
     "/System/Library/Fonts/Supplemental/Arial.ttf",
@@ -98,10 +100,19 @@ def _normalize_to_utc(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
+def _normalize_to_report_timezone(value: datetime) -> datetime:
+    return _normalize_to_utc(value).astimezone(REPORT_TIMEZONE)
+
+
 def _format_report_timestamp(value: datetime | None) -> str:
     if value is None:
         return ""
-    return _normalize_to_utc(value).strftime(REPORT_TIME_FORMAT)
+    local_value = _normalize_to_report_timezone(value)
+    return f"{local_value.strftime(REPORT_TIME_FORMAT)} {REPORT_TIMEZONE_LABEL}"
+
+
+def report_export_day(value: datetime) -> str:
+    return _normalize_to_report_timezone(value).strftime("%Y%m%d")
 
 
 @dataclass(frozen=True, slots=True)

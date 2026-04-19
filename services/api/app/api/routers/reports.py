@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -15,7 +14,6 @@ from app.api.envelope import ApiResponse, ok
 from app.api.errors import ForbiddenError, NotFoundError, ValidationError
 from app.api.schemas import BudgetImpactDTO, ExecutiveSummaryDTO
 from app.reports.service import (
-    _normalize_to_utc,
     ReportFilters,
     build_budget_impact,
     build_executive_summary,
@@ -23,6 +21,7 @@ from app.reports.service import (
     executive_pdf_bytes,
     findings_csv_bytes,
     findings_xlsx_bytes,
+    report_export_day,
 )
 from app.security.audit import log_action
 from app.security.auth import Principal
@@ -41,10 +40,6 @@ def _parse_pii_scope(pii_scope: str, principal: Principal) -> str:
     if pii_scope == "full" and not principal.is_admin:
         raise ForbiddenError("pii_scope=full is only allowed for admin role")
     return pii_scope
-
-
-def _utc_export_day(value: datetime) -> str:
-    return _normalize_to_utc(value).strftime("%Y%m%d")
 
 
 @router.get("/budget-impact", response_model=ApiResponse[BudgetImpactDTO])
@@ -136,7 +131,7 @@ async def findings_export_csv(
 
     payload = findings_csv_bytes(rows)
     filename = (
-        f"findings_{_safe_label(context.dataset_label)}_{_utc_export_day(context.generated_at)}.csv"
+        f"findings_{_safe_label(context.dataset_label)}_{report_export_day(context.generated_at)}.csv"
     )
     log_action(
         session,
@@ -185,7 +180,7 @@ async def findings_export_xlsx(
 
     payload = findings_xlsx_bytes(rows, summary)
     filename = (
-        f"findings_{_safe_label(context.dataset_label)}_{_utc_export_day(context.generated_at)}.xlsx"
+        f"findings_{_safe_label(context.dataset_label)}_{report_export_day(context.generated_at)}.xlsx"
     )
     log_action(
         session,
@@ -234,7 +229,7 @@ async def executive_pdf(
 
     payload = executive_pdf_bytes(summary)
     filename = (
-        f"executive_{_safe_label(summary.metadata.dataset_label)}_{_utc_export_day(summary.metadata.generated_at)}.pdf"
+        f"executive_{_safe_label(summary.metadata.dataset_label)}_{report_export_day(summary.metadata.generated_at)}.pdf"
     )
     log_action(
         session,
