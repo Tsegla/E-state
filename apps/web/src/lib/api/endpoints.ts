@@ -14,6 +14,7 @@ import type {
   InspectorVisit,
   InspectorVisitCreate,
   MatcherRunResponse,
+  SubscriptionQuote,
   ExecutiveSummary,
   Severity,
   UploadResponse,
@@ -87,6 +88,21 @@ export const createInspectorVisit = (body: InspectorVisitCreate) =>
 
 export const budgetImpact = (datasetId: string) =>
   apiFetch<BudgetImpact>("/api/reports/budget-impact", { query: { dataset_id: datasetId } });
+
+export const subscriptionQuoteForDataset = (datasetId: string) =>
+  apiFetch<SubscriptionQuote>("/api/pricing/quote", {
+    query: { dataset_id: datasetId },
+  });
+
+export function subscriptionQuoteFromUpload(file: File): Promise<SubscriptionQuote> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<SubscriptionQuote>("/api/pricing/quote-upload", {
+    method: "POST",
+    form,
+    anonymous: true,
+  });
+}
 
 export const executiveSummary = (params: {
   datasetId: string;

@@ -4,6 +4,7 @@ from app.api.routers.findings import router as findings_router
 from app.api.routers.health import router as health_router
 from app.api.routers.inspector import router as inspector_router
 from app.api.routers.matcher import router as matcher_router
+from app.api.routers.pricing import router as pricing_router
 from app.api.routers.reports import router as reports_router
 from app.api.routers.upload import router as upload_router
 
@@ -15,6 +16,7 @@ ALL_ROUTERS = [
     findings_router,
     inspector_router,
     citizen_router,
+    pricing_router,
     reports_router,
 ]
 

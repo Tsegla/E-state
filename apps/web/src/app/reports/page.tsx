@@ -7,6 +7,7 @@ import { Suspense } from "react";
 
 import { BackOfficeShell } from "@/components/back-office-shell";
 import { MetricCard } from "@/components/metric-card";
+import { SubscriptionQuoteCard } from "@/components/subscription-quote-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { uk } from "@/i18n/uk";
@@ -18,6 +19,7 @@ import {
   downloadFindingsXlsx,
   executiveSummary,
   listDatasets,
+  subscriptionQuoteForDataset,
 } from "@/lib/api/endpoints";
 import type { FindingType } from "@/lib/api/types";
 
@@ -46,6 +48,11 @@ function ReportsPageInner() {
   const summaryQuery = useQuery({
     queryKey: ["executive-summary", datasetId],
     queryFn: () => executiveSummary({ datasetId: datasetId! }),
+    enabled: !!datasetId,
+  });
+  const subscriptionQuery = useQuery({
+    queryKey: ["subscription-quote", datasetId],
+    queryFn: () => subscriptionQuoteForDataset(datasetId!),
     enabled: !!datasetId,
   });
   const reportGeneratedAt =
@@ -193,6 +200,10 @@ function ReportsPageInner() {
                   </div>
                 </CardContent>
               </Card>
+            )}
+
+            {subscriptionQuery.data && (
+              <SubscriptionQuoteCard quote={subscriptionQuery.data} showCopyAction />
             )}
 
             <Card>

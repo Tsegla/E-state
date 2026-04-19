@@ -146,6 +146,22 @@ class BudgetImpactDTO(BaseModel):
     dataset_id: UUID
 
 
+class SubscriptionQuoteDTO(BaseModel):
+    yearly_price_uah: float
+    projected_recoverable_revenue_uah: float
+    concentration_multiplier: float
+    top10_percent_area_share: float
+    tier: Literal["base", "mid", "premium"]
+    total_parcels: int
+    total_owners: int
+    total_area_ha: float
+    revenue_by_purpose: dict[str, float]
+    inputs: dict[str, float]
+    caveats: list[str] = Field(default_factory=list)
+    generated_at: datetime
+    dataset_id: UUID | None = None
+
+
 class ReportMetaDTO(BaseModel):
     generated_at: datetime
     dataset_id: UUID

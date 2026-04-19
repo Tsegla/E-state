@@ -1,9 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    typedRoutes: false,
-  },
+  typedRoutes: false,
+  turbopack: {},
   webpack: (config, { dev }) => {
     if (dev) {
       // Avoid intermittent .next cache corruption causing _next/static 404s in local dev.

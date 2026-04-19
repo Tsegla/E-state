@@ -35,6 +35,9 @@ export default function LandingPage() {
                 {uk.landing.ctaSecondary}
               </Link>
             </Button>
+            <Button asChild variant="ghost" size="lg">
+              <Link href="/pricing">{uk.pricing.openCalculator}</Link>
+            </Button>
           </div>
         </section>
 

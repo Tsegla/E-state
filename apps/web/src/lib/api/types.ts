@@ -139,6 +139,22 @@ export interface ExecutiveSummary {
   metadata: ReportMeta;
 }
 
+export interface SubscriptionQuote {
+  yearly_price_uah: number;
+  projected_recoverable_revenue_uah: number;
+  concentration_multiplier: number;
+  top10_percent_area_share: number;
+  tier: "base" | "mid" | "premium";
+  total_parcels: number;
+  total_owners: number;
+  total_area_ha: number;
+  revenue_by_purpose: Record<string, number>;
+  inputs: Record<string, number>;
+  caveats: string[];
+  generated_at: string;
+  dataset_id: string | null;
+}
+
 export interface CitizenAsset {
   kind: "land_parcel" | "real_estate";
   label: string;
