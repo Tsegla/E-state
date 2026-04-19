@@ -9,6 +9,7 @@ export type FindingStatus = "open" | "in_review" | "resolved" | "dismissed";
 export type SourceOfTruth = "dzk" | "drrp" | "field_override";
 export type FindingType =
   | "LAND_NO_REAL_ESTATE"
+  | "LAND_NO_GARAGE"
   | "REAL_ESTATE_NO_LAND"
   | "USE_VS_OBJECT_MISMATCH"
   | "AREA_PORTFOLIO_DELTA"

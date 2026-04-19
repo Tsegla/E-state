@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { uk } from "@/i18n/uk";
-import { formatDateTime, formatArea } from "@/i18n/format";
+import { formatDateTime, formatArea, formatTaxonomyValue } from "@/i18n/format";
 import {
   downloadFindingsCsv,
   downloadFindingsXlsx,
@@ -62,18 +62,40 @@ function metricsCompare(finding: FindingSummary): MetricCompare {
   if (finding.finding_type === "LAND_NO_REAL_ESTATE") {
     return { text: formatArea(Number(m.total_residential_m2)) };
   }
+  if (finding.finding_type === "LAND_NO_GARAGE") {
+    return { text: formatArea(Number(m.total_garage_m2)) };
+  }
   if (finding.finding_type === "OWNER_NAME_MISMATCH") {
-    return { text: `${Number(m.similarity).toFixed(2)} схожість` };
+    return {
+      text: uk.findings.rowMetricPreview.similarity.replace(
+        "{value}",
+        Number(m.similarity).toFixed(2),
+      ),
+    };
   }
   if (finding.finding_type === "DUPLICATE_REGISTRATION") {
-    return { text: `${m.distinct_owners} власника(ів)` };
+    return {
+      text: uk.findings.rowMetricPreview.duplicateOwners.replace(
+        "{count}",
+        String(m.distinct_owners),
+      ),
+    };
   }
   if (finding.finding_type === "TERMINATED_BUT_ACTIVE") {
-    return { text: `${m.active_parcels} активних ділянок` };
+    return {
+      text: uk.findings.rowMetricPreview.activeParcels.replace(
+        "{count}",
+        String(m.active_parcels),
+      ),
+    };
   }
   const text = Object.entries(m)
     .slice(0, 2)
-    .map(([k, v]) => `${k}: ${v}`)
+    .map(([k, v]) => {
+      const taxonomy = formatTaxonomyValue(k, v);
+      const display = taxonomy !== null ? taxonomy : Array.isArray(v) ? v.join(", ") : String(v);
+      return `${uk.metricLabels[k] ?? uk.fieldLabels[k] ?? k}: ${display}`;
+    })
     .join(" · ");
   return { text };
 }

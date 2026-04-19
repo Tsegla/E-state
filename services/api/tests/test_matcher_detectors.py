@@ -65,13 +65,31 @@ def test_land_no_real_estate_fires_when_no_residential_object() -> None:
     assert drafts[0].computed_metrics["residential_parcels"] == 1
 
 
-def test_land_no_real_estate_suppressed_when_active_residential_present() -> None:
+def test_land_no_real_estate_suppressed_when_house_present() -> None:
     ctx = _ctx([_land_row()], [_estate_row()])
     drafts = REGISTRY["LAND_NO_REAL_ESTATE"](ctx)
     assert drafts == []
 
 
+def test_land_no_real_estate_not_satisfied_by_apartment() -> None:
+    """An apartment sits on OSBB land, not on the owner's 02.01 plot."""
+    ctx = _ctx(
+        [_land_row()],
+        [
+            _estate_row(
+                object_type_raw="Квартира",
+                object_type_norm="квартира",
+                address_raw="м. Львів, вул. Шевченка 150, кв. 9",
+            )
+        ],
+    )
+    drafts = REGISTRY["LAND_NO_REAL_ESTATE"](ctx)
+    assert len(drafts) == 1
+    assert drafts[0].finding_type is FindingType.LAND_NO_REAL_ESTATE
+
+
 def test_area_portfolio_delta_flags_critical_over_ratio() -> None:
+    """100 м² plot + 500 м² ``житловий_будинок`` → ratio 5 > critical=1.75."""
     ctx = _ctx(
         [_land_row(area_m2=100.0)],
         [_estate_row(area_m2=500.0)],
@@ -80,6 +98,41 @@ def test_area_portfolio_delta_flags_critical_over_ratio() -> None:
     assert len(drafts) == 1
     assert drafts[0].severity is Severity.CRITICAL
     assert drafts[0].computed_metrics["ratio"] == 5.0
+
+
+def test_area_portfolio_delta_ignores_apartments() -> None:
+    """Garage plot (27 m²) + flat (95.8 m²) was the canonical false-positive.
+
+    Flats live on OSBB/community land, so they must not count against the
+    owner's personal land portfolio.
+    """
+    ctx = _ctx(
+        [_land_row(intended_use_code="02.05", area_m2=27.0)],
+        [
+            _estate_row(
+                object_type_raw="Квартира",
+                object_type_norm="квартира",
+                area_m2=95.8,
+            )
+        ],
+    )
+    drafts = REGISTRY["AREA_PORTFOLIO_DELTA"](ctx)
+    assert drafts == []
+
+
+def test_area_portfolio_delta_ignores_non_residential_premises() -> None:
+    ctx = _ctx(
+        [_land_row(area_m2=100.0)],
+        [
+            _estate_row(
+                object_type_raw="Нежитлове приміщення",
+                object_type_norm="нежитлове_приміщення",
+                area_m2=400.0,
+            )
+        ],
+    )
+    drafts = REGISTRY["AREA_PORTFOLIO_DELTA"](ctx)
+    assert drafts == []
 
 
 def test_terminated_but_active_requires_no_active_record() -> None:
@@ -156,21 +209,66 @@ def test_use_vs_object_mismatch_fires_on_industrial_object_on_residential_land()
     assert len(drafts) == 1
 
 
-def test_terminated_rights_mismatch_fires_per_terminated_record() -> None:
+def test_terminated_rights_mismatch_one_per_owner() -> None:
+    """Aggregate all terminated rows for one owner into a single finding.
+
+    The pre-April-2026 version emitted one finding per terminated row, which
+    swamped inspectors when a person had e.g. three sold flats.
+    """
     ctx = _ctx(
         [_land_row()],
         [
             _estate_row(terminated_at=pd.Timestamp("2022-03-01")),
             _estate_row(id=uuid4(), terminated_at=pd.Timestamp("2023-05-01")),
-            _estate_row(id=uuid4()),  # still active — should NOT fire
+            _estate_row(id=uuid4(), terminated_at=pd.Timestamp("2024-07-01")),
+            _estate_row(id=uuid4()),  # still active — must not affect the count
         ],
     )
     drafts = REGISTRY["TERMINATED_RIGHTS_MISMATCH"](ctx)
-    assert len(drafts) == 2
-    assert all(d.severity is Severity.WARNING for d in drafts)
-    dates = {d.computed_metrics["drrp_termination_date"] for d in drafts}
-    assert dates == {"2022-03-01T00:00:00", "2023-05-01T00:00:00"}
-    assert all(d.computed_metrics["land_status"] == "active" for d in drafts)
+    assert len(drafts) == 1
+    draft = drafts[0]
+    assert draft.severity is Severity.WARNING
+    assert draft.computed_metrics["terminated_count"] == 3
+    assert draft.computed_metrics["last_termination_at"] == "2024-07-01T00:00:00"
+    assert draft.computed_metrics["land_status"] == "active"
+
+
+def test_land_no_garage_fires_when_no_garage_object() -> None:
+    ctx = _ctx(
+        [_land_row(intended_use_code="02.05", area_m2=27.0)],
+        [],
+    )
+    drafts = REGISTRY["LAND_NO_GARAGE"](ctx)
+    assert len(drafts) == 1
+    assert drafts[0].finding_type is FindingType.LAND_NO_GARAGE
+    assert drafts[0].severity is Severity.WARNING
+    assert drafts[0].computed_metrics["garage_parcels"] == 1
+    assert drafts[0].computed_metrics["total_garage_m2"] == 27.0
+
+
+def test_land_no_garage_suppressed_when_garage_present() -> None:
+    ctx = _ctx(
+        [_land_row(intended_use_code="02.05", area_m2=27.0)],
+        [
+            _estate_row(
+                object_type_raw="Гараж",
+                object_type_norm="гараж",
+                area_m2=24.0,
+            )
+        ],
+    )
+    drafts = REGISTRY["LAND_NO_GARAGE"](ctx)
+    assert drafts == []
+
+
+def test_land_no_garage_ignored_when_only_flat_present() -> None:
+    """A flat does not satisfy the "garage on this plot" requirement."""
+    ctx = _ctx(
+        [_land_row(intended_use_code="02.05", area_m2=27.0)],
+        [_estate_row(object_type_raw="Квартира", object_type_norm="квартира")],
+    )
+    drafts = REGISTRY["LAND_NO_GARAGE"](ctx)
+    assert len(drafts) == 1
 
 
 def test_real_estate_no_land_fires_when_no_matching_parcel() -> None:

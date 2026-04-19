@@ -30,11 +30,12 @@ OUT = REPO / "docs" / "audit"
 
 EXPLANATIONS = {
     "AREA_PORTFOLIO_DELTA": "Сумарна площа нерухомості у {ratio}× перевищує площу землі цієї особи",
-    "LAND_NO_REAL_ESTATE": "Особа має {residential_parcels} житлових ділянок ({total_residential_m2} м²), але жодного житлового об'єкта у ДРРП",
+    "LAND_NO_REAL_ESTATE": "Особа має {residential_parcels} житлових ділянок ({total_residential_m2} м²), але жодного житлового будинку у ДРРП (квартири не рахуються — вони стоять на землі ОСББ)",
+    "LAND_NO_GARAGE": "Особа має {garage_parcels} ділянок 02.05 ({total_garage_m2} м²), але жодного гаража у ДРРП",
     "REAL_ESTATE_NO_LAND": "Особа має активну нерухомість у ДРРП, але жодної земельної ділянки у ДЗК",
     "OWNER_NAME_MISMATCH": "Один і той самий РНОКПП, але різне прізвище у ДЗК vs ДРРП (similarity={similarity})",
     "TERMINATED_BUT_ACTIVE": "ДРРП запис з датою припинення, але досі враховується як активний",
-    "TERMINATED_RIGHTS_MISMATCH": "Право власності на нерухомість припинено ({drrp_termination_date}), але особа залишається активним землекористувачем",
+    "TERMINATED_RIGHTS_MISMATCH": "Право власності на {terminated_count} об'єкт(ів) нерухомості припинено (останнє — {last_termination_at}), але особа залишається активним землекористувачем",
     "MISSING_OWNER": "Ділянка у ДЗК без РНОКПП власника",
     "DUPLICATE_REGISTRATION": "Той самий кадастровий номер з різними власниками",
 }

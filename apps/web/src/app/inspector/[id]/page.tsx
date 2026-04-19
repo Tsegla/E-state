@@ -29,7 +29,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { uk } from "@/i18n/uk";
-import { formatArea, formatDate, formatDateTime } from "@/i18n/format";
+import {
+  formatArea,
+  formatDate,
+  formatDateTime,
+  formatObjectTypeNorm,
+  formatTaxonomyValue,
+} from "@/i18n/format";
 import { createInspectorVisit, getInspectorFinding } from "@/lib/api/endpoints";
 import type {
   FindingDetail,
@@ -88,6 +94,8 @@ function firstValidSnapshotValue(
 function formatSnapshotValue(key: string, value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
   if (isSpreadsheetErrorValue(value)) return "—";
+  const taxonomy = formatTaxonomyValue(key, value);
+  if (taxonomy !== null) return taxonomy;
   if (key.includes("area") && typeof value !== "boolean") {
     const n = Number(value);
     if (!Number.isNaN(n)) return formatArea(n);
@@ -114,6 +122,11 @@ function snapshotsDiffer(
   return String(av ?? "") !== String(bv ?? "");
 }
 
+function prettyObjectTypeNorm(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "";
+  return formatObjectTypeNorm(value);
+}
+
 function truthValuesFromEvidence(ev: FindingEvidence): {
   object_type: string;
   area_m2: string;
@@ -127,10 +140,15 @@ function truthValuesFromEvidence(ev: FindingEvidence): {
       use: String(s.agri_use_kind ?? s.intended_use_label ?? ""),
     };
   }
+  // Prefer human-entered raw values; when only the normalized
+  // ``object_type_norm`` ("житловий_будинок") is available, surface the
+  // prettified Ukrainian label instead of the snake_case identifier.
+  const objectTypeRaw = s.object_type_raw ? String(s.object_type_raw) : "";
+  const objectTypeNice = prettyObjectTypeNorm(s.object_type_norm);
   return {
-    object_type: String(s.object_type_raw ?? s.object_type_norm ?? ""),
+    object_type: objectTypeRaw || objectTypeNice,
     area_m2: s.area_m2 != null ? String(s.area_m2) : "",
-    use: String(s.object_type_norm ?? s.object_type_raw ?? ""),
+    use: objectTypeNice || objectTypeRaw,
   };
 }
 
@@ -259,14 +277,23 @@ export default function InspectorFindingPage() {
             <dl className="grid grid-cols-2 gap-2">
               {Object.entries(finding.computed_metrics)
                 .slice(0, 4)
-                .map(([k, v]) => (
-                  <div key={k}>
-                    <dt className="text-meta">{k}</dt>
-                    <dd className="truncate text-ink">
-                      {Array.isArray(v) ? v.join(", ") : String(v)}
-                    </dd>
-                  </div>
-                ))}
+                .map(([k, v]) => {
+                  const taxonomy = formatTaxonomyValue(k, v);
+                  return (
+                    <div key={k}>
+                      <dt className="text-meta">
+                        {uk.metricLabels[k] ?? uk.fieldLabels[k] ?? k}
+                      </dt>
+                      <dd className="truncate text-ink">
+                        {taxonomy !== null
+                          ? taxonomy
+                          : Array.isArray(v)
+                            ? v.join(", ")
+                            : String(v)}
+                      </dd>
+                    </div>
+                  );
+                })}
             </dl>
           </CardContent>
         </Card>

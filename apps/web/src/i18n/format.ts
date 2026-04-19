@@ -1,3 +1,5 @@
+import { uk } from "@/i18n/uk";
+
 const NBSP = "\u00A0";
 const ISO_WITH_TIMEZONE = /(?:[zZ]|[+-]\d{2}:\d{2})$/;
 const ISO_DATETIME_WITHOUT_TIMEZONE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/;
@@ -70,6 +72,49 @@ export function formatDateTime(value: string | Date | null | undefined): string 
   const date = parseDateInput(value);
   if (Number.isNaN(date.getTime())) return "—";
   return dateTimeFormatter.format(date);
+}
+
+/**
+ * Convert a normalized object type (``житловий_будинок``) to a human label.
+ * Falls back to replacing underscores with spaces and capitalizing for
+ * unknown values, so nothing leaks through as ``snake_case`` to the user.
+ */
+export function formatObjectTypeNorm(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  const s = String(value).trim();
+  if (!s) return "—";
+  const known = uk.objectTypes[s];
+  if (known) return known;
+  const spaced = s.replace(/_/g, " ");
+  return spaced.charAt(0).toLocaleUpperCase("uk-UA") + spaced.slice(1);
+}
+
+/** Convert a use/object category bucket (``residential``) to Ukrainian. */
+export function formatUseCategory(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  const s = String(value).trim();
+  const mapped = uk.useCategories[s as keyof typeof uk.useCategories];
+  if (mapped) return mapped;
+  const spaced = s.replace(/_/g, " ");
+  return spaced.charAt(0).toLocaleUpperCase("uk-UA") + spaced.slice(1);
+}
+
+/**
+ * Pretty-print any snapshot/metric value that carries a technical taxonomy
+ * identifier. Returns ``null`` when ``key`` is not a known taxonomy key so
+ * callers can fall back to default formatting.
+ */
+export function formatTaxonomyValue(key: string, value: unknown): string | null {
+  if (key === "object_type_norm") {
+    return formatObjectTypeNorm(value);
+  }
+  if (key === "object_categories" || key === "land_categories") {
+    if (Array.isArray(value)) {
+      return value.map(formatUseCategory).join(", ") || "—";
+    }
+    return formatUseCategory(value);
+  }
+  return null;
 }
 
 export function formatReportDateTime(value: string | Date | null | undefined): string {

@@ -50,18 +50,32 @@ Baseline values in `matcher/config.py`; tune per ОТГ later via env.
 class MatcherConfig:
     name_fuzz_min: float = 0.92            # rapidfuzz token_set_ratio / 100
     owner_name_mismatch_max: float = 0.85  # below this, flag mismatch
-    area_portfolio_ratio_critical: float = 1.25  # re_m2 / land_m2
-    area_portfolio_ratio_warning: float = 1.00
+    # Calibrated 2026-04: apartment+garage portfolios caused false positives
+    # at the old 1.00/1.25 thresholds because multi-storey houses already
+    # exceed their plot footprint.
+    area_portfolio_ratio_critical: float = 1.75  # re_m2 / land_m2
+    area_portfolio_ratio_warning: float = 1.25
     residential_use_codes: tuple = ("02.01", "02.03")
+    garage_use_codes: tuple = ("02.05",)
     commercial_use_codes: tuple = ("03.07",)
     industrial_use_codes: tuple = ("11.02", "11.04")
     agri_use_codes: tuple = ("01.01", "01.03", "01.04", "01.05", "01.06")
     residential_object_types: tuple = (
         "квартира", "житловий_будинок",
     )
+    # A house is the only object that "closes" a 02.01/02.03 plot.
+    house_object_types: tuple = ("житловий_будинок",)
+    garage_object_types: tuple = ("гараж",)
     commercial_object_types: tuple = (
         "нежитлова_будівля", "нежитлове_приміщення",
         "торгова_будівля", "офісна_будівля",
+    )
+    # Objects whose area meaningfully compares to the owner's plot. Flats and
+    # non-residential premises live on OSBB/community land, so they are
+    # excluded from AREA_PORTFOLIO_DELTA sums.
+    area_comparable_object_types: tuple = (
+        "житловий_будинок", "нежитлова_будівля", "гараж",
+        "торгова_будівля", "офісна_будівля", "промислова_будівля",
     )
 ```
 
@@ -89,7 +103,7 @@ Each section declares: trigger, severity, `computed_metrics` shape, `evidence_re
 
 ### 6.1 `LAND_NO_REAL_ESTATE`
 
-- **Trigger:** person has at least one `land_parcel` with `intended_use_code ∈ residential_use_codes` AND **no** `real_estate` row with `object_type_norm ∈ residential_object_types` AND `terminated_at IS NULL`.
+- **Trigger:** person has at least one `land_parcel` with `intended_use_code ∈ residential_use_codes` AND **no** active `real_estate` row with `object_type_norm ∈ house_object_types` (i.e. a `житловий_будинок`). An apartment does **not** satisfy the requirement — a flat sits on OSBB/community land, not on this person's 02.01/02.03 plot, so the house that should stand on their plot is still missing from ДРРП.
 - **Severity:** `warning`.
 - **Metrics:** `{residential_parcels: int, total_residential_m2: float}`.
 - **Evidence:** land parcel ids used.
@@ -111,11 +125,11 @@ Each section declares: trigger, severity, `computed_metrics` shape, `evidence_re
 
 ### 6.4 `AREA_PORTFOLIO_DELTA`
 
-- **Trigger:** `re_m2_active / land_m2 > area_portfolio_ratio_critical` (critical) or `> area_portfolio_ratio_warning` (warning). `re_m2_active` sums only non-terminated ДРРП objects; `land_m2` sums all land area in m² (га × 10 000).
+- **Trigger:** `re_m2_comparable / land_m2 > area_portfolio_ratio_critical` (critical) or `> area_portfolio_ratio_warning` (warning). `re_m2_comparable` sums only non-terminated ДРРП objects whose `object_type_norm ∈ area_comparable_object_types`. Apartments and non-residential premises are **excluded** because they stand on OSBB/community land, not on the individual owner's plot — including them produced false positives such as "garage parcel 27 m² + flat 95.8 m² → ratio 3.55 critical". `land_m2` sums all land area in m² (га × 10 000).
 - **Severity:** `critical` or `warning` per threshold.
-- **Metrics:** `{land_m2, re_m2, ratio, terminated_count}`.
-- **Evidence:** all parcels + active real-estate ids.
-- **Real-dataset signal:** `Хоцевич Григорій Степанович` — land 903 m², active real-estate 6989.7 m², ratio ≈ 7.74 → `critical`.
+- **Metrics:** `{zem_m2, ner_m2, ratio, delta_m2}`.
+- **Evidence:** all parcels + the comparable active real-estate ids whose area was counted.
+- **Real-dataset signal:** `Хоцевич Григорій Степанович` — land 903 m², comparable real-estate ≈ 6 989 m², ratio ≈ 7.74 → `critical`.
 
 ### 6.5 `OWNER_NAME_MISMATCH`
 
@@ -148,6 +162,22 @@ Each section declares: trigger, severity, `computed_metrics` shape, `evidence_re
 - **Metrics:** `{cadastral_no, tax_ids: [...]}`.
 - **Evidence:** all conflicting parcels.
 - **Real-dataset signal:** 0 on provided data; detector still required because duplicate filings are the #1 real-world integrity failure.
+
+### 6.9 `TERMINATED_RIGHTS_MISMATCH`
+
+- **Trigger:** person has **any** `real_estate` row with `terminated_at IS NOT NULL` AND still holds at least one active `land_parcel` under the same `owner_tax_id`.
+- **Severity:** `warning`.
+- **Metrics:** `{terminated_count: int, last_termination_at: ISO8601, land_status: "active"}`.
+- **Evidence:** all terminated real-estate ids for that owner + all their active parcels.
+- **Volume note:** **one finding per owner**, not per terminated row. An owner with three sold flats produces a single finding with `terminated_count = 3`; prior to April 2026 this detector emitted one per row and flooded the inspector queue.
+
+### 6.10 `LAND_NO_GARAGE`
+
+- **Trigger:** person has at least one `land_parcel` with `intended_use_code ∈ garage_use_codes` (02.05) AND **no** active `real_estate` row with `object_type_norm ∈ garage_object_types`.
+- **Severity:** `warning`.
+- **Metrics:** `{garage_parcels: int, total_garage_m2: float}`.
+- **Evidence:** the owner's garage-purpose parcels.
+- **Rationale:** mirrors §6.1 for garage-purpose plots. A cooperative garage parcel without any registered `гараж` usually signals an unregistered structure or a stale ДРРП export.
 
 ## 7. Budget-impact model (stretch, used by `/reports/budget-impact`)
 

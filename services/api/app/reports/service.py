@@ -62,7 +62,8 @@ EXPORT_COLUMNS = [
 UPLIFT_COLUMN_UK = "Орієнтовний вплив на бюджет, грн/рік"
 
 FINDING_TYPE_LABELS_UK = {
-    FindingType.LAND_NO_REAL_ESTATE.value: "Земля без відповідної нерухомості",
+    FindingType.LAND_NO_REAL_ESTATE.value: "Житлова ділянка без зареєстрованого будинку",
+    FindingType.LAND_NO_GARAGE.value: "Ділянка під гараж без зареєстрованого гаража",
     FindingType.REAL_ESTATE_NO_LAND.value: "Нерухомість без земельної ділянки",
     FindingType.USE_VS_OBJECT_MISMATCH.value: "Невідповідність використання об'єкта",
     FindingType.AREA_PORTFOLIO_DELTA.value: "Суттєва розбіжність площ",
@@ -91,6 +92,31 @@ SOURCE_LABELS_UK = {
     "drrp": "ДРРП",
     "field_override": "Польовий огляд",
 }
+
+# High-level use/object category buckets emitted by USE_VS_OBJECT_MISMATCH.
+USE_CATEGORY_LABELS_UK = {
+    "residential": "Житлове",
+    "commercial": "Комерційне",
+    "industrial": "Промислове",
+    "agricultural": "Сільськогосподарське",
+}
+
+
+def _friendly_use_categories(values: object) -> str:
+    if not isinstance(values, (list, tuple, set)):
+        return ""
+    labels: list[str] = []
+    for v in values:
+        raw = str(v).strip()
+        if not raw:
+            continue
+        mapped = USE_CATEGORY_LABELS_UK.get(raw)
+        if mapped:
+            labels.append(mapped)
+        else:
+            spaced = raw.replace("_", " ")
+            labels.append(spaced[:1].upper() + spaced[1:] if spaced else raw)
+    return ", ".join(labels)
 
 
 def _normalize_to_utc(value: datetime) -> datetime:
@@ -434,9 +460,17 @@ def _metrics_summary_uk(finding: FindingRow) -> str:
     metrics = finding.computed_metrics or {}
     if finding.finding_type == FindingType.LAND_NO_REAL_ESTATE.value:
         return (
-            "У реєстрі нерухомості є площа "
-            f"{float(metrics.get('total_residential_m2') or 0.0):,.1f} м², "
-            "але відповідних земельних записів недостатньо."
+            "Особа володіє житловою ділянкою ("
+            f"{int(metrics.get('residential_parcels') or 0)} шт., "
+            f"загалом {float(metrics.get('total_residential_m2') or 0.0):,.1f} м²), "
+            "але зареєстрованого будинку на ній у ДРРП немає."
+        )
+    if finding.finding_type == FindingType.LAND_NO_GARAGE.value:
+        return (
+            "Особа володіє ділянкою для гаражного будівництва ("
+            f"{int(metrics.get('garage_parcels') or 0)} шт., "
+            f"загалом {float(metrics.get('total_garage_m2') or 0.0):,.1f} м²), "
+            "але жодного гаража у ДРРП не зареєстровано."
         )
     if finding.finding_type == FindingType.AREA_PORTFOLIO_DELTA.value:
         return (
@@ -467,6 +501,13 @@ def _metrics_summary_uk(finding: FindingRow) -> str:
     if finding.finding_type == FindingType.REAL_ESTATE_NO_LAND.value:
         return "Є об'єкт нерухомості, але не знайдено відповідного земельного запису."
     if finding.finding_type == FindingType.USE_VS_OBJECT_MISMATCH.value:
+        land_cats = _friendly_use_categories(metrics.get("land_categories"))
+        obj_cats = _friendly_use_categories(metrics.get("object_categories"))
+        if land_cats and obj_cats:
+            return (
+                f"Призначення землі ({land_cats}) не відповідає "
+                f"типу об'єктів ({obj_cats})."
+            )
         return "Цільове призначення землі не відповідає типу об'єкта нерухомості."
     if finding.finding_type == FindingType.TERMINATED_RIGHTS_MISMATCH.value:
         return "Статус припинення прав у реєстрах не узгоджується."

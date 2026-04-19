@@ -19,8 +19,16 @@ def detect_area_portfolio_delta(ctx: MatcherContext) -> list[FindingDraft]:
     active_ner = ctx.ner[ctx.ner["terminated_at"].isna()].copy()
     if active_ner.empty:
         return []
+    # Keep only objects that legally sit on their owner's land. Apartments and
+    # non-residential premises share OSBB/community land, so including them
+    # produces false positives (e.g. a small garage parcel + any flat).
+    comparable_ner = active_ner[
+        active_ner["object_type_norm"].isin(cfg.area_comparable_object_types)
+    ]
+    if comparable_ner.empty:
+        return []
 
-    ner_by_owner = active_ner.groupby("owner_tax_id")["area_m2"].sum().to_dict()
+    ner_by_owner = comparable_ner.groupby("owner_tax_id")["area_m2"].sum().to_dict()
     zem_by_owner = ctx.zem.groupby("owner_tax_id")["area_m2"].sum().to_dict()
 
     drafts: list[FindingDraft] = []
@@ -38,7 +46,8 @@ def detect_area_portfolio_delta(ctx: MatcherContext) -> list[FindingDraft]:
             Severity.CRITICAL if ratio >= cfg.area_portfolio_ratio_critical else Severity.WARNING
         )
         parcels = ctx.zem[ctx.zem["owner_tax_id"] == tid]
-        objects = active_ner[active_ner["owner_tax_id"] == tid]
+        # Evidence mirrors the metric: only the objects whose area was counted.
+        objects = comparable_ner[comparable_ner["owner_tax_id"] == tid]
         drafts.append(
             FindingDraft(
                 person_tax_id=str(tid),

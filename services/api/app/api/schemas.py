@@ -177,9 +177,30 @@ class ExecutiveSummaryDTO(BaseModel):
     metadata: ReportMetaDTO
 
 
+class ValidationIssueDTO(BaseModel):
+    level: Literal["error", "warning", "info"]
+    code: str
+    message: str
+    column: str | None = None
+    row_count: int | None = None
+    sample_values: list[str] = Field(default_factory=list)
+
+
+class WorkbookValidationDTO(BaseModel):
+    detected_format: str
+    file_extension: str | None = None
+    mime_type: str | None = None
+    source_format: str | None = None
+    present_columns: list[str] = Field(default_factory=list)
+    unexpected_columns: list[str] = Field(default_factory=list)
+    issues: list[ValidationIssueDTO] = Field(default_factory=list)
+
+
 class UploadResponse(BaseModel):
     dataset_id: UUID
     label: str
     zem_rows: int
     ner_rows: int
     persons: int
+    warnings: list[str] = Field(default_factory=list)
+    validation: dict[str, WorkbookValidationDTO] = Field(default_factory=dict)

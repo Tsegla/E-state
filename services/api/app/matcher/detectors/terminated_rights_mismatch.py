@@ -1,6 +1,14 @@
-"""Detector: DRRP right terminated, but same РНОКПП still active in land registry."""
+"""Detector: DRRP right terminated, but same РНОКПП still active in land registry.
+
+Emits **one finding per owner**, not per terminated row. The previous
+per-row version produced many duplicate findings for a single person whose
+terminated real-estate portfolio is large (e.g. several sold flats), so
+inspectors had to triage the same case multiple times.
+"""
 
 from __future__ import annotations
+
+import pandas as pd
 
 from app.domain.enums import FindingType, Severity
 from app.matcher.context import MatcherContext
@@ -18,27 +26,35 @@ def detect_terminated_rights_mismatch(ctx: MatcherContext) -> list[FindingDraft]
     terminated = ctx.ner[
         ctx.ner["terminated_at"].notna() & ctx.ner["owner_tax_id"].isin(landowners)
     ]
+    if terminated.empty:
+        return []
 
     drafts: list[FindingDraft] = []
-    for _, ner_row in terminated.iterrows():
-        tid = ner_row["owner_tax_id"]
+    for tid, term_group in terminated.groupby("owner_tax_id"):
         parcels = land[land["owner_tax_id"] == tid]
-        term_at = ner_row["terminated_at"]
+        last_term = _latest_iso(term_group["terminated_at"])
         drafts.append(
             FindingDraft(
                 person_tax_id=str(tid),
                 finding_type=FindingType.TERMINATED_RIGHTS_MISMATCH,
                 severity=Severity.WARNING,
                 computed_metrics={
-                    "drrp_termination_date": term_at.isoformat()
-                    if hasattr(term_at, "isoformat")
-                    else str(term_at),
+                    "terminated_count": int(len(term_group)),
+                    "last_termination_at": last_term,
                     "land_status": "active",
                 },
                 evidence=(
-                    real_estate_evidence(ner_row),
+                    *tuple(real_estate_evidence(r) for _, r in term_group.iterrows()),
                     *tuple(land_evidence(r) for _, r in parcels.iterrows()),
                 ),
             )
         )
     return drafts
+
+
+def _latest_iso(series: pd.Series) -> str | None:
+    cleaned = series.dropna()
+    if cleaned.empty:
+        return None
+    latest = cleaned.max()
+    return latest.isoformat() if hasattr(latest, "isoformat") else str(latest)

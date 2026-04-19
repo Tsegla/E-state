@@ -27,15 +27,49 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { uk } from "@/i18n/uk";
-import { formatArea, formatDate, formatDateTime } from "@/i18n/format";
+import {
+  formatArea,
+  formatDate,
+  formatDateTime,
+  formatTaxonomyValue,
+} from "@/i18n/format";
 import { assignFindingToInspector, getFinding } from "@/lib/api/endpoints";
-import type { FindingEvidence } from "@/lib/api/types";
+import type { FindingEvidence, FindingType } from "@/lib/api/types";
+
+// Per-field diff highlighting only makes sense when the two evidence cards
+// describe the *same* entity from two sources. For portfolio-level findings
+// the two cards are different objects (e.g. a land parcel and a building)
+// and *should* differ in every field — painting those diffs red is noise,
+// not signal. The red cue stays on the banner and the metrics card.
+const PER_FIELD_DIFF_TYPES = new Set<FindingType>([
+  "OWNER_NAME_MISMATCH",
+  "TERMINATED_RIGHTS_MISMATCH",
+  "USE_VS_OBJECT_MISMATCH",
+  "DUPLICATE_REGISTRATION",
+]);
 
 function formatEvidenceValue(key: string, value: unknown): string {
   if (value == null || value === "") return "—";
+  const taxonomy = formatTaxonomyValue(key, value);
+  if (taxonomy !== null) return taxonomy;
   if (key.includes("area")) return formatArea(Number(value));
   if (key.includes("_at") && typeof value === "string") return formatDate(value);
   return String(value);
+}
+
+// Keys that are useful in CSV/XLSX exports but add noise in the UI.
+// They remain in the API response (and in downloaded reports) but are
+// hidden from evidence cards on the finding detail screen.
+const HIDDEN_SNAPSHOT_KEYS = new Set<string>([
+  "intended_use_code",
+]);
+
+function labelForSnapshotKey(key: string): string {
+  return uk.fieldLabels[key] ?? key;
+}
+
+function labelForMetricKey(key: string): string {
+  return uk.metricLabels[key] ?? uk.fieldLabels[key] ?? key;
 }
 
 function normalize(value: unknown): string {
@@ -73,6 +107,7 @@ export default function FindingDetailPage() {
   const mismatchedKeys = useMemo(() => {
     if (!finding) return new Set<string>();
     const keys = new Set<string>();
+    if (!PER_FIELD_DIFF_TYPES.has(finding.finding_type)) return keys;
     const [a, b] = [finding.evidence[0], finding.evidence[1]];
     if (!a || !b) return keys;
     const allKeys = new Set<string>([
@@ -141,7 +176,7 @@ export default function FindingDetailPage() {
                   <span className="font-medium text-ink">
                     {uk.findings.detail.banner.issueLabel}:
                   </span>{" "}
-                  {uk.findingType[finding.finding_type].toLowerCase()}
+                  {uk.findingType[finding.finding_type]}
                 </p>
               </div>
             </div>
@@ -189,18 +224,23 @@ export default function FindingDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <dl className="grid grid-cols-2 gap-3 text-small">
-                    {Object.entries(finding.computed_metrics).map(([key, value]) => (
-                      <div key={key} className="flex flex-col gap-0.5">
-                        <dt className="text-meta">{key}</dt>
-                        <dd className="text-ink tabular">
-                          {typeof value === "number"
-                            ? value.toLocaleString("uk-UA")
-                            : Array.isArray(value)
-                              ? value.join(", ")
-                              : String(value)}
-                        </dd>
-                      </div>
-                    ))}
+                    {Object.entries(finding.computed_metrics).map(([key, value]) => {
+                      const taxonomy = formatTaxonomyValue(key, value);
+                      return (
+                        <div key={key} className="flex flex-col gap-0.5">
+                          <dt className="text-meta">{labelForMetricKey(key)}</dt>
+                          <dd className="text-ink tabular">
+                            {taxonomy !== null
+                              ? taxonomy
+                              : typeof value === "number"
+                                ? value.toLocaleString("uk-UA")
+                                : Array.isArray(value)
+                                  ? value.join(", ")
+                                  : String(value)}
+                          </dd>
+                        </div>
+                      );
+                    })}
                   </dl>
                 </CardContent>
               </Card>
@@ -308,7 +348,9 @@ function EvidenceCard({
       </CardHeader>
       <CardContent>
         <dl className="flex flex-col divide-y divide-ink/[0.06]">
-          {Object.entries(evidence.snapshot).map(([key, value]) => {
+          {Object.entries(evidence.snapshot)
+            .filter(([key]) => !HIDDEN_SNAPSHOT_KEYS.has(key))
+            .map(([key, value]) => {
             const isMismatch = mismatchedKeys.has(key);
             return (
               <div
@@ -320,11 +362,11 @@ function EvidenceCard({
               >
                 <dt
                   className={cn(
-                    "text-xs uppercase tracking-wide",
+                    "text-xs tracking-wide",
                     isMismatch ? "text-rose-700 font-medium" : "text-ink-muted",
                   )}
                 >
-                  {key}
+                  {labelForSnapshotKey(key)}
                 </dt>
                 <dd
                   className={cn(

@@ -7,16 +7,18 @@ together and keep persistence concerns in one place.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Session
 
 from app.db.models import DatasetRow, LandParcelRow, PersonRow, RealEstateRow
 from app.domain.enums import DatasetStatus
-from app.ingest.excel import read_ner_workbook, read_zem_workbook
+from app.ingest.excel import WorkbookReadResult, read_ner_workbook, read_zem_workbook
 from app.ingest.normalize import normalize_name
+from app.ingest.validation import issues_to_messages
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +27,8 @@ class IngestResult:
     zem_rows: int
     ner_rows: int
     persons: int
+    warnings: list[str] = field(default_factory=list)
+    reports: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
 def ingest_dataset(
@@ -34,6 +38,8 @@ def ingest_dataset(
     ner_path: str | Path,
     label: str,
     uploaded_by: str | None = None,
+    zem_content_type: str | None = None,
+    ner_content_type: str | None = None,
 ) -> IngestResult:
     """Ingest a pair of ДЗК/ДРРП files into a new dataset.
 
@@ -44,8 +50,14 @@ def ingest_dataset(
       * upserts into ``person`` union
 
     Does **not** run the matcher — call ``matcher.engine.run`` separately so
-    ingest and matching can be rerun independently.
+    ingest and matching can be rerun independently. Hard validation failures
+    (unsupported file signature, missing required columns) bubble up as
+    :class:`app.ingest.validation.ValidationErrorSummary` before any DB writes.
     """
+
+    zem_read = read_zem_workbook(zem_path, content_type=zem_content_type)
+    ner_read = read_ner_workbook(ner_path, content_type=ner_content_type)
+
     dataset = DatasetRow(
         id=uuid4(),
         label=label,
@@ -61,7 +73,7 @@ def ingest_dataset(
     ner_rows = 0
     persons: dict[str, dict[str, object]] = {}
 
-    for rec in read_zem_workbook(zem_path):
+    for rec in zem_read.records:
         parcel = LandParcelRow(
             id=uuid4(),
             dataset_id=dataset.id,
@@ -95,7 +107,7 @@ def ingest_dataset(
                 },
             )["sources"].add("dzk")  # type: ignore[union-attr]
 
-    for rec in read_ner_workbook(ner_path):
+    for rec in ner_read.records:
         re_row = RealEstateRow(
             id=uuid4(),
             dataset_id=dataset.id,
@@ -153,9 +165,44 @@ def ingest_dataset(
     dataset.status = DatasetStatus.MATCHED.value  # will be overridden by matcher if needed
     session.flush()
 
+    warnings, reports = _summarize_validation(zem_read, ner_read)
+
     return IngestResult(
         dataset_id=dataset.id,
         zem_rows=zem_rows,
         ner_rows=ner_rows,
         persons=len(persons),
+        warnings=warnings,
+        reports=reports,
     )
+
+
+def _summarize_validation(
+    zem: WorkbookReadResult,
+    ner: WorkbookReadResult,
+) -> tuple[list[str], dict[str, dict[str, Any]]]:
+    warnings: list[str] = []
+    reports: dict[str, dict[str, Any]] = {}
+
+    for key, read in (("zem", zem), ("ner", ner)):
+        file_issues = list(read.file_report.issues)
+        column_issues = list(read.column_report.issues)
+        table_issues = list(read.table_report.issues)
+        extra_issues = list(read.extra_issues)
+
+        all_issues = file_issues + column_issues + table_issues + extra_issues
+        warnings.extend(
+            f"[{key}] {line}" for line in issues_to_messages(all_issues)
+        )
+
+        reports[key] = {
+            "detected_format": read.file_report.detected_format,
+            "file_extension": read.file_report.file_extension,
+            "mime_type": read.file_report.mime_type,
+            "source_format": read.source_format,
+            "present_columns": list(read.column_report.present_columns),
+            "unexpected_columns": list(read.column_report.unexpected_columns),
+            "issues": [issue.model_dump() for issue in all_issues],
+        }
+
+    return warnings, reports

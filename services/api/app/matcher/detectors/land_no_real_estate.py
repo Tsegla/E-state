@@ -1,4 +1,9 @@
-"""Detector: residential land owned, no residential real estate registered."""
+"""Detector: residential land owned, no house (``житловий_будинок``) registered.
+
+An apartment does *not* close a residential plot: the flat sits on OSBB land,
+not on the owner's 02.01/02.03 plot, so the house that should stand on that
+plot is still missing from ДРРП.
+"""
 
 from __future__ import annotations
 
@@ -16,7 +21,7 @@ def detect_land_no_real_estate(ctx: MatcherContext) -> list[FindingDraft]:
         return []
 
     residential_codes = set(cfg.residential_use_codes)
-    residential_types = set(cfg.residential_object_types)
+    house_types = set(cfg.house_object_types)
 
     land = ctx.zem[
         ctx.zem["intended_use_code"].isin(residential_codes)
@@ -25,20 +30,20 @@ def detect_land_no_real_estate(ctx: MatcherContext) -> list[FindingDraft]:
     if land.empty:
         return []
 
-    # For each tax_id in ctx.ner, which have an active residential object?
+    # For each tax_id in ctx.ner, which have an active ``житловий_будинок``?
     if ctx.ner.empty:
-        persons_with_residential: set[str] = set()
+        persons_with_house: set[str] = set()
     else:
         active = ctx.ner[ctx.ner["terminated_at"].isna()]
-        persons_with_residential = set(
-            active[active["object_type_norm"].isin(residential_types)]["owner_tax_id"]
+        persons_with_house = set(
+            active[active["object_type_norm"].isin(house_types)]["owner_tax_id"]
             .dropna()
             .unique()
         )
 
     drafts: list[FindingDraft] = []
     for tid, group in land.groupby("owner_tax_id"):
-        if tid in persons_with_residential:
+        if tid in persons_with_house:
             continue
         total_m2 = float(group["area_m2"].sum())
         drafts.append(

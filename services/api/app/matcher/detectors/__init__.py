@@ -5,6 +5,7 @@ from collections.abc import Callable
 from app.matcher.context import MatcherContext
 from app.matcher.detectors.area_portfolio_delta import detect_area_portfolio_delta
 from app.matcher.detectors.duplicate_registration import detect_duplicate_registration
+from app.matcher.detectors.land_no_garage import detect_land_no_garage
 from app.matcher.detectors.land_no_real_estate import detect_land_no_real_estate
 from app.matcher.detectors.missing_owner import detect_missing_owner
 from app.matcher.detectors.owner_name_mismatch import detect_owner_name_mismatch
@@ -18,6 +19,7 @@ DetectorFn = Callable[[MatcherContext], list[FindingDraft]]
 
 REGISTRY: dict[str, DetectorFn] = {
     "LAND_NO_REAL_ESTATE": detect_land_no_real_estate,
+    "LAND_NO_GARAGE": detect_land_no_garage,
     "REAL_ESTATE_NO_LAND": detect_real_estate_no_land,
     "USE_VS_OBJECT_MISMATCH": detect_use_vs_object_mismatch,
     "AREA_PORTFOLIO_DELTA": detect_area_portfolio_delta,
