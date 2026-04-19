@@ -5,6 +5,7 @@ import { ArrowRight, Loader2, UploadCloud } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { BackOfficeShell } from "@/components/back-office-shell";
 import { SubscriptionQuoteCard } from "@/components/subscription-quote-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +23,7 @@ export default function PricingPage() {
   });
 
   return (
-    <main className="min-h-screen bg-surface-muted px-4 py-8 lg:px-8">
+    <BackOfficeShell>
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
         <section className="rounded-2xl border border-ink/[0.06] bg-surface p-8 shadow-card">
           <h1 className="text-display text-ink">{uk.pricing.title}</h1>
@@ -37,9 +38,7 @@ export default function PricingPage() {
           <CardContent className="flex flex-col gap-4">
             <label className="flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-ink/15 bg-surface-muted px-6 py-10 text-center hover:border-forest/40">
               <UploadCloud className="h-8 w-8 text-ink-muted" />
-              <span className="text-sm text-ink">
-                {file?.name ?? uk.pricing.uploadHint}
-              </span>
+              <span className="text-sm text-ink">{file?.name ?? uk.pricing.uploadHint}</span>
               <input
                 type="file"
                 accept=".xlsx,.xls,.csv"
@@ -92,6 +91,6 @@ export default function PricingPage() {
 
         {quote && <SubscriptionQuoteCard quote={quote} />}
       </div>
-    </main>
+    </BackOfficeShell>
   );
 }

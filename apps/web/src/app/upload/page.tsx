@@ -11,6 +11,7 @@ import {
   Loader2,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { BackOfficeShell } from "@/components/back-office-shell";
@@ -39,13 +40,14 @@ interface StepIndicatorProps {
 
 function StepIndicator({ steps }: StepIndicatorProps) {
   return (
-    <ol className="flex items-center gap-2 text-sm">
+    <ol aria-label={uk.upload.progressLabel} className="flex items-center gap-2 text-sm">
       {steps.map((step, i) => {
         const number = i + 1;
         const isLast = i === steps.length - 1;
         return (
           <li key={step.label} className="flex items-center gap-2">
             <span
+              aria-current={step.state === "active" ? "step" : undefined}
               className={cn(
                 "flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold tabular",
                 step.state === "done" && "border-forest bg-forest text-surface",
@@ -207,8 +209,19 @@ export default function UploadPage() {
     },
   });
 
-  const canSubmit = !!zemFile && !!nerFile && label.trim().length > 0 && !uploadMut.isPending;
+  const isProcessing = uploadMut.isPending || matcherMut.isPending;
+  const canSubmit = !!zemFile && !!nerFile && label.trim().length > 0 && !isProcessing;
   const filesSelected = [zemFile, nerFile].filter(Boolean).length;
+
+  const resetFlow = () => {
+    setZemFile(null);
+    setNerFile(null);
+    setLabel("");
+    setResult(null);
+    setMatchResult(null);
+    uploadMut.reset();
+    matcherMut.reset();
+  };
 
   // Step 1 = upload; 2 = analyze; 3 = review
   const uploadStepDone = !!result;
@@ -231,13 +244,13 @@ export default function UploadPage() {
   return (
     <BackOfficeShell>
       <div className="mx-auto flex max-w-3xl flex-col gap-8">
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col items-center gap-3 text-center">
           <span className="text-[11px] font-medium uppercase tracking-wider text-ink-muted">
             {uk.eyebrow.upload}
           </span>
           <h1 className="text-display text-ink">{uk.upload.title}</h1>
-          <p className="text-small">{uk.upload.subtitle}</p>
-          <div className="mt-2">
+          <p className="max-w-2xl text-small">{uk.upload.subtitle}</p>
+          <div className="mt-2 flex justify-center">
             <StepIndicator steps={steps} />
           </div>
         </div>
@@ -245,15 +258,24 @@ export default function UploadPage() {
         {!result ? (
           <Card>
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 if (!zemFile || !nerFile) return;
-                uploadMut.mutate({ zem: zemFile, ner: nerFile, label: label.trim() });
+                try {
+                  const upload = await uploadMut.mutateAsync({
+                    zem: zemFile,
+                    ner: nerFile,
+                    label: label.trim(),
+                  });
+                  await matcherMut.mutateAsync(upload.dataset_id);
+                } catch {
+                  // Errors are rendered inline by the mutation states below.
+                }
               }}
             >
-              <CardHeader>
+              <CardHeader className="items-center text-center">
                 <CardTitle>{uk.upload.emptyHeading}</CardTitle>
-                <CardDescription>{uk.upload.emptyBody}</CardDescription>
+                <CardDescription className="max-w-2xl">{uk.upload.emptyBody}</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-6">
                 <div className="flex flex-col gap-2">
@@ -311,19 +333,19 @@ export default function UploadPage() {
 
                 {uploadMut.error ? (
                   <p className="text-sm text-rose-700">
-                    {(uploadMut.error as Error).message}
+                    {uploadMut.error instanceof Error ? uploadMut.error.message : uk.common.error}
                   </p>
                 ) : null}
               </CardContent>
-              <CardFooter className="flex items-center justify-between border-t border-ink/[0.06]">
+              <CardFooter className="flex flex-col items-center justify-center gap-3 border-t border-ink/[0.06] text-center">
                 <span className="text-small text-ink-muted">
                   {`${uk.upload.filesSelected}: ${filesSelected}/2`}
                 </span>
-                <Button type="submit" disabled={!canSubmit} size="lg">
-                  {uploadMut.isPending ? (
+                <Button type="submit" disabled={!canSubmit} size="lg" className="min-w-[220px]">
+                  {isProcessing ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      {uk.upload.submitting}
+                      {uploadMut.isPending ? uk.upload.submitting : uk.common.loading}
                     </>
                   ) : (
                     <>
@@ -337,7 +359,7 @@ export default function UploadPage() {
           </Card>
         ) : (
           <Card>
-            <CardHeader>
+            <CardHeader className="items-center text-center">
               <CardTitle className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-forest-700" />
                 {uk.upload.resultTitle}
@@ -364,41 +386,65 @@ export default function UploadPage() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="flex flex-wrap items-center justify-between gap-3 border-t border-ink/[0.06]">
+            <CardFooter className="flex flex-col items-center justify-center gap-3 border-t border-ink/[0.06] text-center">
               {matchResult ? (
                 <span className="text-small text-ink-muted">
-                  Знайдено:{" "}
+                  {uk.upload.findingsFound}:{" "}
                   <strong className="text-ink">
                     {formatInt(matchResult.findings_created)}
                   </strong>
                 </span>
               ) : (
                 <span className="text-small text-ink-muted">
-                  {uk.upload.steps.analyze}
+                  {matcherMut.isPending ? uk.upload.analyzing : uk.upload.steps.analyze}
                 </span>
               )}
-              <Button
-                onClick={() => matcherMut.mutate(result.dataset_id)}
-                disabled={matcherMut.isPending || matchResult !== null}
-                size="lg"
-              >
-                {matcherMut.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {uk.common.loading}
-                  </>
-                ) : matchResult ? (
-                  <>
-                    <Check className="h-4 w-4" />
-                    {uk.upload.steps.review}
-                  </>
+              <div className="flex flex-wrap justify-center gap-3">
+                {matchResult ? (
+                  <Button asChild size="lg" className="min-w-[220px]">
+                    <Link href={`/findings?dataset=${result.dataset_id}`}>
+                      {uk.upload.steps.review}
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
                 ) : (
-                  <>
-                    {uk.upload.runMatcher}
-                    <ArrowRight className="h-4 w-4" />
-                  </>
+                  <Button
+                    onClick={() => matcherMut.mutate(result.dataset_id)}
+                    disabled={matcherMut.isPending}
+                    size="lg"
+                    className="min-w-[220px]"
+                  >
+                    {matcherMut.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {uk.upload.analyzing}
+                      </>
+                    ) : (
+                      <>
+                        {uk.upload.runMatcher}
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
                 )}
-              </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="lg"
+                  className="min-w-[220px]"
+                  onClick={resetFlow}
+                  disabled={isProcessing}
+                >
+                  {uk.upload.startOver}
+                </Button>
+              </div>
+              {matcherMut.error ? (
+                <p className="text-sm text-rose-700">
+                  {matcherMut.error instanceof Error
+                    ? matcherMut.error.message
+                    : uk.common.error}
+                </p>
+              ) : null}
             </CardFooter>
           </Card>
         )}

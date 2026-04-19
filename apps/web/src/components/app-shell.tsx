@@ -15,7 +15,6 @@ interface AppShellProps {
   nav: NavItem[];
   activeHref?: string;
   children: React.ReactNode;
-  surface?: "back-office" | "citizen" | "inspector";
 }
 
 export function AppShell({ nav, activeHref, children }: AppShellProps) {
@@ -23,7 +22,7 @@ export function AppShell({ nav, activeHref, children }: AppShellProps) {
     <div className="flex min-h-screen flex-col bg-surface-muted">
       <header className="sticky top-0 z-40 shrink-0 border-b border-ink/[0.06] bg-surface/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 py-3.5 lg:px-8">
-          <Link href="/dashboard" className="flex items-center gap-2.5">
+          <Link href="/" className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-forest text-surface shadow-[0_1px_2px_rgba(31,36,33,0.12)]">
               <Building2 className="h-[18px] w-[18px]" strokeWidth={2.25} />
             </span>
@@ -34,13 +33,14 @@ export function AppShell({ nav, activeHref, children }: AppShellProps) {
               </span>
             </span>
           </Link>
-          <nav className="flex items-center gap-1">
+          <nav aria-label="Головна навігація" className="flex items-center gap-1">
             {nav.map((item) => {
               const isActive = activeHref === item.href;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
+                  aria-current={isActive ? "page" : undefined}
                   className={cn(
                     "flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition-all",
                     isActive
